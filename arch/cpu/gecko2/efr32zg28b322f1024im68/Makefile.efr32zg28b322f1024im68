@@ -1,0 +1,13 @@
+include $(CONTIKI_CPU)/Makefile.gecko_sdk  
+
+DEVICE_FAMILY := EFR32ZG28
+RAIL_CPU := efr32xg28
+RAIL_FAMILY := efr32xg2x
+
+CFLAGS += -DEFR32ZG=1
+CFLAGS += -g -gdwarf-2 -mthumb -std=c99 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -mcmse
+LDFLAGS += -g -gdwarf-2 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16 -mcmse
+
+include $(CONTIKI_CPU)/Makefile.gecko2
+include $(CONTIKI)/$(CONTIKI_NG_CM33_DIR)/Makefile.cm33
+include $(CONTIKI_CPU)/Makefile.commander
