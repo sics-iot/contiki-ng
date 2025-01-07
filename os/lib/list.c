@@ -74,15 +74,17 @@ list_add(list_t list, void *item)
 
   /* Make sure not to add the same element twice */
   list_remove(list, item);
+	
+  if(item != NULL){
+  	((struct list *)item)->next = NULL;
 
-  ((struct list *)item)->next = NULL;
+  	l = list_tail(list);
 
-  l = list_tail(list);
-
-  if(l == NULL) {
-    *list = item;
-  } else {
-    l->next = item;
+  	if(l == NULL) {
+    	*list = item;
+  	} else {
+    	l->next = item;
+  	}
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -91,9 +93,11 @@ list_push(list_t list, void *item)
 {
   /* Make sure not to add the same element twice */
   list_remove(list, item);
-
+	
+  if(item != NULL){
   ((struct list *)item)->next = *list;
   *list = item;
+  }
 }
 /*---------------------------------------------------------------------------*/
 void *
@@ -175,9 +179,11 @@ list_insert(list_t list, void *previtem, void *newitem)
   if(previtem == NULL) {
     list_push(list, newitem);
   } else {
-    list_remove(list, newitem);
-    ((struct list *)newitem)->next = ((struct list *)previtem)->next;
-    ((struct list *)previtem)->next = newitem;
+		  if(newitem != NULL){
+    		list_remove(list, newitem);
+    		((struct list *)newitem)->next = ((struct list *)previtem)->next;
+    		((struct list *)previtem)->next = newitem;
+		}
   }
 }
 /*---------------------------------------------------------------------------*/
