@@ -272,14 +272,18 @@ coap_receive(const coap_endpoint_t *src,
 
                 /* Resource requested Block2 transfer */
               } else if(new_offset != 0) {
+                uint16_t block_size = COAP_MAX_BLOCK_SIZE;
+                if (new_offset > 0 && new_offset < COAP_MAX_BLOCK_SIZE) {
+                    block_size = (uint16_t) new_offset;
+                }
                 LOG_DBG("Blockwise: no block option for blockwise resource, using block size %u\n",
-                        COAP_MAX_BLOCK_SIZE);
+                        block_size);
 
                 coap_set_header_block2(response, 0, new_offset != -1,
-                                       COAP_MAX_BLOCK_SIZE);
+                                       block_size);
                 coap_set_payload(response, response->payload,
                                  MIN(response->payload_len,
-                                     COAP_MAX_BLOCK_SIZE));
+                                     block_size));
               } /* blockwise transfer handling */
             } /* no errors/hooks */
             /* successful service callback */
