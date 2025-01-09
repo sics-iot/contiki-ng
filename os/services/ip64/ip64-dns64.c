@@ -91,11 +91,16 @@ void
 ip64_dns64_6to4(const uint8_t *ipv6data, int ipv6datalen,
                 uint8_t *ipv4data, int ipv4datalen)
 {
-  int i, j;
+  int i;
   int qlen;
   uint8_t *qdata;
   uint8_t *q;
   struct dns_hdr *hdr;
+
+  if(ipv4datalen < sizeof(struct dns_hdr)) {
+    LOG_WARN("ip64_dns64_6to4: packet ended while parsing header\n");
+    return;
+  }
 
   hdr = (struct dns_hdr *)ipv4data;
   LOG_DBG("dns64_6to4 id: %02x%02x\n", hdr->id[0], hdr->id[1]);
@@ -115,17 +120,20 @@ ip64_dns64_6to4(const uint8_t *ipv6data, int ipv6datalen,
   qdata = ipv4data + sizeof(struct dns_hdr);
   for(i = 0; i < ((hdr->numquestions[0] << 8) + hdr->numquestions[1]); i++) {
     do {
+      if(qdata >= ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_6to4: packet ended while parsing\n");
+        return;
+      }
       qlen = *qdata;
       qdata++;
-      for(j = 0; j < qlen; j++) {
-        qdata++;
-        if(qdata > ipv4data + ipv4datalen) {
-          LOG_WARN("dns64_6to4: Packet ended while parsing\n");
-          return;
-        }
-      }
+      qdata += qlen;
     } while(qlen != 0);
     q = qdata;
+
+    if(qdata + DNS_QUESTION_SIZE > ipv4data + ipv4datalen) {
+      LOG_WARN("ip64_dns64_6to4: packet ended while parsing\n");
+      return;
+    }
     if(q[DNS_QUESTION_CLASS0] == 0 && q[DNS_QUESTION_CLASS1] == DNS_CLASS_IN &&
        q[DNS_QUESTION_TYPE0] == 0 && q[DNS_QUESTION_TYPE1] == DNS_TYPE_AAAA) {
       q[DNS_QUESTION_TYPE1] = DNS_TYPE_A;
@@ -147,6 +155,11 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
   uint8_t *q;
   struct dns_hdr *hdr;
 
+  if(ipv4datalen < sizeof(struct dns_hdr)) {
+    LOG_WARN("ip64_dns64_4to6: packet ended while parsing header (in)\n");
+    return ipv6datalen;
+  }
+
   hdr = (struct dns_hdr *)ipv4data;
   LOG_DBG("dns64_4to6 id: %02x%02x\n", hdr->id[0], hdr->id[1]);
   LOG_DBG("dns64_4to6 flags1: 0x%02x\n", hdr->flags1);
@@ -166,19 +179,23 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
   qcopy = ipv6data + sizeof(struct dns_hdr);
   for(i = 0; i < ((hdr->numquestions[0] << 8) + hdr->numquestions[1]); i++) {
     do {
+      if(qdata >= ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
       qlen = *qdata;
       qdata++;
       qcopy++;
-      for(j = 0; j < qlen; j++) {
-        qdata++;
-        qcopy++;
-        if(qdata > ipv4data + ipv4datalen) {
-          LOG_WARN("dns64_4to6: packet ended while parsing\n");
-          return ipv6datalen;
-        }
-      }
+      qdata += qlen;
+      qcopy += qlen;
     } while(qlen != 0);
+
     q = qcopy;
+    if(q + DNS_QUESTION_SIZE > ipv6data + ipv6datalen) {
+      LOG_WARN("ip64_dns64_6to4: packet ended while parsing\n");
+      return ipv6datalen;
+    }
+    /* TODO (functionality): Should replace q[DNS_QUESTION_TYPE1] == DNS_TYPE_A ? */
     if(q[DNS_QUESTION_CLASS0] == 0 && q[DNS_QUESTION_CLASS1] == DNS_CLASS_IN &&
        q[DNS_QUESTION_TYPE0] == 0 && q[DNS_QUESTION_TYPE1] == DNS_TYPE_AAAA) {
       q[DNS_QUESTION_TYPE1] = DNS_TYPE_AAAA;
@@ -193,25 +210,61 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
 
   /* Go through the answers section and update the answers. */
   for(i = 0; i < ((hdr->numanswers[0] << 8) + hdr->numanswers[1]); i++) {
+    if(adata >= ipv4data + ipv4datalen) {
+      LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+      return ipv6datalen;
+    }
 
     n = *adata;
     if(n & 0xc0) {
       /* Short-hand name format: 2 bytes */
+      if(adata + 2 > ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
+      if(acopy + 2 > ipv6data + ipv6datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+        return ipv6datalen;
+      }
+
       *acopy++ = *adata++;
       *acopy++ = *adata++;
     } else {
       /* Name spelled out */
       do {
+        if(adata >= ipv4data + ipv4datalen) {
+          LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+          return ipv6datalen;
+        }
         n = *adata;
+        /* TODO (functionality): should copy length field n to acopy? */
         adata++;
         acopy++;
+
+        if(adata + n > ipv4data + ipv4datalen) {
+          LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+          return ipv6datalen;
+        }
+        if(acopy + n > ipv6data + ipv6datalen) {
+          LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+          return ipv6datalen;
+        }
+
         for(j = 0; j < n; j++) {
           *acopy++ = *adata++;
         }
       } while(n != 0);
     }
 
+    if(adata + 2 > ipv4data + ipv4datalen) {
+      LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+      return ipv6datalen;
+    }
     if(adata[0] == 0 && adata[1] == DNS_TYPE_A) {
+      if(acopy + 2 > ipv6data + ipv6datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+        return ipv6datalen;
+      }
       /* Update the type field from A to AAAA */
       *acopy = *adata;
       acopy++;
@@ -222,6 +275,16 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
 
       /* Get the length of the address record. Should be 4. */
       lenptr = &acopy[6];
+
+      if(adata + 2 + 4 + 2 > ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
+      if(acopy + 2 + 4 + 2 > ipv6data + ipv6datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+        return ipv6datalen;
+      }
+
       len = (adata[6] << 8) + adata[7];
 
       /* Copy the class, the TTL, and the data length */
@@ -229,8 +292,18 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
       acopy += 8;
       adata += 8;
 
+      if(adata + len > ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
+
       if(len == 4) {
         uip_ip4addr_t addr;
+
+        if(acopy + sizeof(uip_ip6addr_t) > ipv6data + ipv6datalen) {
+          LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+          return ipv6datalen;
+        }
         uip_ipaddr(&addr, adata[0], adata[1], adata[2], adata[3]);
         ip64_addr_4to6(&addr, (uip_ip6addr_t *)acopy);
 
@@ -241,11 +314,24 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
         ipv6datalen += 12;
 
       } else {
+        if(acopy + len > ipv6data + ipv6datalen) {
+          LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+          return ipv6datalen;
+        }
         memcpy(acopy, adata, len);
         acopy += len;
         adata += len;
       }
     } else {
+      if(adata + 2 + 2 + 4 + 2 > ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
+      if(acopy + 2 + 2 + 4 + 2 > ipv6data + ipv6datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+        return ipv6datalen;
+      }
+
       len = (adata[8] << 8) + adata[9];
 
       /* Copy the type, class, the TTL, and the data length */
@@ -253,6 +339,14 @@ ip64_dns64_4to6(const uint8_t *ipv4data, int ipv4datalen,
       acopy += 10;
       adata += 10;
 
+      if(adata + len > ipv4data + ipv4datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (in)\n");
+        return ipv6datalen;
+      }
+      if(acopy + len > ipv6data + ipv6datalen) {
+        LOG_WARN("ip64_dns64_4to6: packet ended while parsing (out)\n");
+        return ipv6datalen;
+      }
       /* Copy the data */
       memcpy(acopy, adata, len);
       acopy += len;
