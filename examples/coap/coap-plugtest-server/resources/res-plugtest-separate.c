@@ -102,6 +102,8 @@ res_resume_handler()
     LOG_DBG("/separate       ");
     coap_transaction_t *transaction = NULL;
     if((transaction = coap_new_transaction(separate_store->request_metadata.mid,
+                                           separate_store->request_metadata.token,
+                                           separate_store->request_metadata.token_len,
                                            &separate_store->request_metadata.endpoint))) {
       LOG_DBG_(
         "RESPONSE (%s %u)\n", separate_store->request_metadata.type == COAP_TYPE_CON ? "CON" : "NON", separate_store->request_metadata.mid);

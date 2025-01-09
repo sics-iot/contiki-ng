@@ -44,10 +44,13 @@
 #include "coap-transactions.h"
 #include "coap-observe.h"
 #include "coap-timer.h"
+#include "coap-endpoint.h"
 #include "lib/memb.h"
 #include "lib/list.h"
 #include "lib/random.h"
 #include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
 
 /* Log configuration */
 #include "coap-log.h"
@@ -62,13 +65,22 @@ LIST(transactions_list);
 static void
 coap_retransmit_transaction(coap_timer_t *nt)
 {
+  uint8_t i;
   coap_transaction_t *t = coap_timer_get_user_data(nt);
+
   if(t == NULL) {
     LOG_DBG("No retransmission data in coap_timer!\n");
     return;
   }
   ++(t->retrans_counter);
-  LOG_DBG("Retransmitting %u (%u)\n", t->mid, t->retrans_counter);
+  if (t->acked) {
+    LOG_DBG("Waiting on response ");
+    for(i = 0; i < t->token_len; ++i)
+      LOG_DBG_("%"PRIx8, t->token[i]);
+    LOG_DBG_(" (%u)\n", t->retrans_counter);
+  } else {
+    LOG_DBG("Retransmitting %u (%u)\n", t->mid, t->retrans_counter);
+  }
   coap_send_transaction(t);
 }
 /*---------------------------------------------------------------------------*/
@@ -77,13 +89,16 @@ coap_retransmit_transaction(coap_timer_t *nt)
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 coap_transaction_t *
-coap_new_transaction(uint16_t mid, const coap_endpoint_t *endpoint)
+coap_new_transaction(uint16_t mid, const uint8_t *token, uint8_t token_len, const coap_endpoint_t *endpoint)
 {
   coap_transaction_t *t = memb_alloc(&transactions_memb);
 
   if(t) {
     t->mid = mid;
+    memcpy(t->token, token, MIN(COAP_TOKEN_LEN, token_len));
+    t->token_len = token_len;
     t->retrans_counter = 0;
+    t->acked = false;
 
     /* save client address */
     coap_endpoint_copy(&t->endpoint, endpoint);
@@ -103,7 +118,9 @@ coap_send_transaction(coap_transaction_t *t)
      ((COAP_HEADER_TYPE_MASK & t->message[0]) >> COAP_HEADER_TYPE_POSITION)) {
     if(t->retrans_counter <= COAP_MAX_RETRANSMIT) {
       /* not timed out yet */
-      coap_sendto(&t->endpoint, t->message, t->message_len);
+      if(!t->acked) {
+        coap_sendto(&t->endpoint, t->message, t->message_len);
+      }
       LOG_DBG("Keeping transaction %u\n", t->mid);
 
       if(t->retrans_counter == 0) {
@@ -163,6 +180,29 @@ coap_get_transaction_by_mid(uint16_t mid)
   for(t = (coap_transaction_t *)list_head(transactions_list); t; t = t->next) {
     if(t->mid == mid) {
       LOG_DBG("Found transaction for MID %u: %p\n", t->mid, t);
+      return t;
+    }
+  }
+  return NULL;
+}
+/*---------------------------------------------------------------------------*/
+coap_transaction_t *
+coap_get_transaction_by_token_and_endpoint(const uint8_t *token, uint8_t token_len,
+                                           const coap_endpoint_t *endpoint)
+{
+  uint8_t i;
+  coap_transaction_t *t = NULL;
+
+  for(t = (coap_transaction_t *)list_head(transactions_list); t; t = t->next) {
+    if(t->token_len == token_len &&
+       0 == memcmp(t->token, token, MIN(COAP_TOKEN_LEN, token_len)) &&
+       coap_endpoint_cmp(&t->endpoint, endpoint)) {
+      LOG_DBG("Found transaction for Token ");
+      for(i = 0; i < token_len; ++i)
+        LOG_DBG_("%"PRIx8, token[i]);
+      LOG_DBG_(", Endpoint ");
+      LOG_DBG_COAP_EP(endpoint);
+      LOG_DBG_(": %p\n", t);
       return t;
     }
   }

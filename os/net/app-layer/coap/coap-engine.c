@@ -168,11 +168,20 @@ coap_receive(const coap_endpoint_t *src,
     LOG_DBG_COAP_STRING((const char *)message->payload, message->payload_len);
     LOG_DBG_("\n");
 
+#ifdef WITH_DTLS
+    /* when using DTLS the payload can be overwritten by the respose */
+    static uint8_t payload_buffer[COAP_MAX_CHUNK_SIZE];
+    if(message->payload != NULL) {
+      memcpy(payload_buffer, message->payload, message->payload_len);
+      message->payload = payload_buffer;
+    }
+#endif /* WITH_DTLS */
+
     /* handle requests */
     if(message->code >= COAP_GET && message->code <= COAP_DELETE) {
 
       /* use transaction buffer for response to confirmable request */
-      if((transaction = coap_new_transaction(message->mid, src))) {
+      if((transaction = coap_new_transaction(message->mid, message->token, message->token_len, src))) {
         uint32_t block_num = 0;
         uint16_t block_size = COAP_MAX_BLOCK_SIZE;
         uint32_t block_offset = 0;
@@ -315,17 +324,39 @@ coap_receive(const coap_endpoint_t *src,
         coap_remove_observer_by_mid(src, message->mid);
       }
 
-      if((transaction = coap_get_transaction_by_mid(message->mid))) {
-        /* free transaction memory before callback, as it may create a new transaction */
-        coap_resource_response_handler_t callback = transaction->callback;
-        void *callback_data = transaction->callback_data;
-
-        coap_clear_transaction(transaction);
-
-        /* check if someone registered for the response */
-        if(callback) {
-          callback(callback_data, message);
+      const coap_endpoint_t *ep;
+      if(message->type == COAP_TYPE_ACK && message->code == 0) {
+        /* Handles regular (empty message) ACKs. */
+        /* ACKs carrying a piggyback response is handled below in the same way as any normal response */
+        LOG_DBG("Got empty ACK. Waiting for separate response\n");
+        if((transaction = coap_get_transaction_by_mid(message->mid))) {
+          transaction->acked = true;
         }
+      } else if((ep = coap_get_src_endpoint(message))) {
+        if((transaction = coap_get_transaction_by_token_and_endpoint(message->token, message->token_len, ep))) {
+          /* free transaction memory before callback, as it may create a new transaction */
+          coap_resource_response_handler_t callback = transaction->callback;
+          void *callback_data = transaction->callback_data;
+
+          coap_clear_transaction(transaction);
+
+          if(message->type == COAP_TYPE_CON) {
+            LOG_DBG("Got CON response. Need to ACK\n");
+
+            coap_message_t ack[1];
+            /* ACK with empty code (0) */
+            coap_init_message(ack, COAP_TYPE_ACK, 0, message->mid);
+            /* serializing into IPBUF: Overwrites parts that are already parsed into the response struct */
+            coap_sendto(ep, coap_databuf(), coap_serialize_message(ack, coap_databuf()));
+          }
+
+          /* check if someone registered for the response */
+          if(callback) {
+            callback(callback_data, message);
+          }
+        }
+      } else {
+        LOG_ERR("ERROR: no endpoint in response\n");
       }
       /* if(ACKed transaction) */
       transaction = NULL;

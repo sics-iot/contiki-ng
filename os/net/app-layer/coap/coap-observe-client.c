@@ -297,7 +297,7 @@ coap_obs_request_registration(const coap_endpoint_t *endpoint, char *uri,
   coap_set_header_observe(request, 0);
   token_len = coap_generate_token(&token);
   set_token(request, token, token_len);
-  t = coap_new_transaction(request->mid, endpoint);
+  t = coap_new_transaction(request->mid, request->token, request->token_len, endpoint);
   if(t) {
     obs = coap_obs_add_observee(endpoint, (uint8_t *)token, token_len, uri,
                                 notification_callback, data);
