@@ -27,15 +27,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- /**
+/**
  * \addtogroup cc13xx-cc26xx-cpu
  * @{
  *
  * \defgroup cc13xx-cc26xx-prng Pseudo Random Number Generator (PRNG) for CC13xx/CC26xx.
  * @{
- *
- * Implementation based on Bob Jenkins' small noncryptographic PRNG.
- * - http://burtleburtle.net/bob/rand/smallprng.html
  *
  * This file overrides os/lib/random.c. Note that the file name must
  * match the original file for the override to work.
@@ -44,22 +41,13 @@
  *        Implementation of Pseudo Random Number Generator for CC13xx/CC26xx.
  * \author
  *        Edvard Pettersen <e.pettersen@ti.com>
+ *        Andreas Urke
  */
 /*---------------------------------------------------------------------------*/
-#include <contiki.h>
+#include "contiki.h"
+#include "lib/smallprng.h"
 /*---------------------------------------------------------------------------*/
-#include <stdint.h>
-/*---------------------------------------------------------------------------*/
-typedef struct {
-  uint32_t a;
-  uint32_t b;
-  uint32_t c;
-  uint32_t d;
-} ranctx_t;
-
-static ranctx_t ranctx;
-/*---------------------------------------------------------------------------*/
-#define rot32(x, k) (((x) << (k)) | ((x) >> (32 - (k))))
+static smallprng_t smallprng;
 /*---------------------------------------------------------------------------*/
 /**
  * \brief   Generates a new random number using the PRNG.
@@ -68,15 +56,7 @@ static ranctx_t ranctx;
 unsigned short
 random_rand(void)
 {
-  uint32_t e;
-
-  e        = ranctx.a - rot32(ranctx.b, 27);
-  ranctx.a = ranctx.b ^ rot32(ranctx.c, 17);
-  ranctx.b = ranctx.c + ranctx.d;
-  ranctx.c = ranctx.d + e;
-  ranctx.d = e        + ranctx.a;
-
-  return (unsigned short)ranctx.d;
+  return (unsigned short)smallprng_rand(&smallprng);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -86,13 +66,7 @@ random_rand(void)
 void
 random_init(unsigned short seed)
 {
-  uint32_t i;
-
-  ranctx.a = 0xf1ea5eed;
-  ranctx.b = ranctx.c = ranctx.d = (uint32_t)seed;
-  for(i = 0; i < 20; ++i) {
-    (void)random_rand();
-  }
+  smallprng_init(&smallprng, seed);
 }
 /*---------------------------------------------------------------------------*/
 /**
