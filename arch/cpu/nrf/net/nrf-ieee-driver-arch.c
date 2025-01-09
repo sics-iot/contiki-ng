@@ -49,6 +49,8 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "dev/radio.h"
+#include "nrfx_clock.h"
+#include "rtimer-arch.h"
 #include "sys/energest.h"
 #include "sys/int-master.h"
 #include "sys/critical.h"
@@ -60,6 +62,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include "lpm.h"
 
 #include "nrf.h"
 
@@ -338,8 +341,8 @@ setup_interrupts(void)
 /*---------------------------------------------------------------------------*/
 /*
  * Set up timestamping with PPI:
- * - Programme Channel 1 for RADIO->FRAMESTART--->TIMER0->CAPTURE[3]
- * - Programme Channel 2 for RADIO->END--->TIMER0->CAPTURE[2]
+ * - Programme Channel 1 for RADIO->FRAMESTART--->NRF_RTIMER_TIMER->CAPTURE[3]
+ * - Programme Channel 2 for RADIO->END--->NRF_RTIMER_TIMER->CAPTURE[2]
  */
 static void
 setup_ppi_timestamping(void)
@@ -347,11 +350,11 @@ setup_ppi_timestamping(void)
   nrfx_gppi_channel_endpoints_setup(
     NRF_PPI_FRAMESTART_CHANNEL,
     nrf_radio_event_address_get(NRF_RADIO, NRF_RADIO_EVENT_FRAMESTART),
-    nrf_timer_task_address_get(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE3));
+    nrf_timer_task_address_get(NRF_RTIMER_TIMER, NRF_TIMER_TASK_CAPTURE3));
   nrfx_gppi_channel_endpoints_setup(
     NRF_PPI_END_CHANNEL,
     nrf_radio_event_address_get(NRF_RADIO, NRF_RADIO_EVENT_END),
-    nrf_timer_task_address_get(NRF_TIMER0, NRF_TIMER_TASK_CAPTURE2));
+    nrf_timer_task_address_get(NRF_RTIMER_TIMER, NRF_TIMER_TASK_CAPTURE2));
   nrfx_gppi_channels_enable(1uL << NRF_PPI_FRAMESTART_CHANNEL
                             | 1uL << NRF_PPI_END_CHANNEL);
 }
@@ -492,7 +495,7 @@ rssi_read(void)
 static uint8_t
 lqi_convert_to_802154_scale(uint8_t lqi_hw)
 {
-  return (uint8_t)lqi_hw > 63 ? 255 : lqi_hw *ED_RSSISCALE;
+  return (uint8_t)lqi_hw > 63 ? 255 : lqi_hw * ED_RSSISCALE;
 }
 /*---------------------------------------------------------------------------*/
 /* Netstack API functions */
@@ -547,10 +550,27 @@ channel_clear(void)
   return NRF_CCA_CLEAR;
 }
 /*---------------------------------------------------------------------------*/
+static uint8_t
+request(void)
+{
+  /*
+   * prevent lpm from going into deep sleep if the radio is powered on
+   */
+  if(radio_is_powered()) {
+    return LPM_MODE_SLEEP;
+  }
+
+  return LPM_MODE_MAX_SUPPORTED;
+}
+/*---------------------------------------------------------------------------*/
+LPM_MODULE(nrf_rf_lpm_module, request, NULL, NULL);
+/*---------------------------------------------------------------------------*/
 static int
 init(void)
 {
   LOG_DBG("Init\n");
+
+  lpm_register_module(&nrf_rf_lpm_module);
 
   last_rssi = 0;
   last_lqi = 0;
@@ -562,10 +582,15 @@ init(void)
   timestamps.phr = 0;
 
   /* Request the HF clock */
-  nrf_clock_event_clear(NRF_CLOCK, NRF_CLOCK_EVENT_HFCLKSTARTED);
-  nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLKSTART);
-  while(!nrf_clock_event_check(NRF_CLOCK, NRF_CLOCK_EVENT_HFCLKSTARTED));
-  nrf_clock_event_clear(NRF_CLOCK, NRF_CLOCK_EVENT_HFCLKSTARTED);
+  nrfx_clock_hfclk_start();
+
+  /* Enable Timers which will be needed in PPI */
+  nrf_timer_event_clear(NRF_RTIMER_TIMER, NRF_TIMER_EVENT_COMPARE0);
+  nrf_timer_frequency_set(NRF_RTIMER_TIMER, NRF_TIMER_FREQ_62500Hz);
+  nrf_timer_bit_width_set(NRF_RTIMER_TIMER, NRF_TIMER_BIT_WIDTH_32);
+  nrf_timer_mode_set(NRF_RTIMER_TIMER, NRF_TIMER_MODE_TIMER);
+  nrf_timer_int_enable(NRF_RTIMER_TIMER, NRF_TIMER_INT_COMPARE0_MASK);
+  nrf_timer_task_trigger(NRF_RTIMER_TIMER, NRF_TIMER_TASK_START);
 
   /* Start the RF driver process */
   process_start(&nrf_ieee_rf_process, NULL);
@@ -720,9 +745,17 @@ read_frame(void *buf, unsigned short bufsize)
 
   /* Latch timestamp values for this most recently received frame */
   timestamps.phr = rx_buf.phr;
-  timestamps.framestart = nrf_timer_cc_get(NRF_TIMER0, NRF_TIMER_CC_CHANNEL3);
-  timestamps.end = nrf_timer_cc_get(NRF_TIMER0, NRF_TIMER_CC_CHANNEL2);
+  timestamps.framestart = nrf_timer_cc_get(NRF_RTIMER_TIMER, NRF_TIMER_CC_CHANNEL3);
+  timestamps.end = nrf_timer_cc_get(NRF_RTIMER_TIMER, NRF_TIMER_CC_CHANNEL2);
   timestamps.mpdu_duration = rx_buf.phr * BYTE_DURATION_RTIMER;
+
+
+  /* Use NRF_RTIMER_TIMER CC0 for conversion to rtimer(based on RTC) */
+  /* timestamps.sfd will be used in TSCH Module for slot calculation */
+  NRF_RTIMER_TIMER->TASKS_CAPTURE[0] = 1;
+  uint64_t now = RTIMER_NOW();
+  timestamps.framestart = now - ((NRF_RTIMER_TIMER->CC[0] - timestamps.framestart) * RTIMER_SECOND / 62500 );
+  timestamps.end = now - ((NRF_RTIMER_TIMER->CC[0] - timestamps.end) * RTIMER_SECOND / 62500);
 
   /*
    * Timestamp in rtimer ticks of the reception of the SFD. The SFD was

@@ -7,6 +7,8 @@ CONTIKI_CPU_DIRS += net
 
 ### CPU-dependent source files
 CONTIKI_CPU_SOURCEFILES += rtimer-arch.c
+CONTIKI_CPU_SOURCEFILES += soc-rtc.c
+CONTIKI_CPU_SOURCEFILES += lpm.c
 CONTIKI_CPU_SOURCEFILES += watchdog-arch.c
 CONTIKI_CPU_SOURCEFILES += clock-arch.c
 CONTIKI_CPU_SOURCEFILES += dbg-arch.c

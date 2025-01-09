@@ -50,12 +50,37 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 /*---------------------------------------------------------------------------*/
+#ifdef NRF_RTIMER_CONF_TIMER_INSTANCE
+#define TIMER_INSTANCE NRF_RTIMER_CONF_TIMER_INSTANCE
+#else
+#define TIMER_INSTANCE 0
+#endif
+
+#if TIMER_INSTANCE == 0
+#define NRF_RTIMER_TIMER      NRF_TIMER0
+#define NRF_RTIMER_IRQn       TIMER0_IRQn
+#define NRF_RTIMER_IRQHandler TIMER0_IRQHandler
+#elif TIMER_INSTANCE == 1
+#define NRF_RTIMER_TIMER      NRF_TIMER1
+#define NRF_RTIMER_IRQn       TIMER1_IRQn
+#define NRF_RTIMER_IRQHandler TIMER1_IRQHandler
+#else
+#error Unsupported timer for rtimer
+#endif
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Returns the current real-time clock time
  * @return The current rtimer time in ticks
  *
  */
 rtimer_clock_t rtimer_arch_now(void);
+/**
+ * @brief Returns the next planed rtimer time
+ * @return The next rtimer time in ticks
+ *
+ */
+rtimer_clock_t rtimer_arch_next();
+
 /*---------------------------------------------------------------------------*/
 #endif /* RTIMER_ARCH_H_ */
 /*---------------------------------------------------------------------------*/
