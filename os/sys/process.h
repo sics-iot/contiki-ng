@@ -272,7 +272,7 @@ typedef uint8_t       process_num_events_t;
  * \hideinitializer
  */
 #define PROCESS_THREAD(name, ev, data) 				\
-static PT_THREAD(process_thread_##name(struct pt *process_pt,	\
+PT_THREAD(process_thread_##name(struct pt *process_pt,	\
 				       process_event_t ev,	\
 				       process_data_t data))
 

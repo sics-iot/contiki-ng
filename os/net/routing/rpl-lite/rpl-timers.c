@@ -68,7 +68,8 @@ clock_time_t RPL_PROBING_DELAY_FUNC(void);
 #define PERIODIC_DELAY_SECONDS     60
 #define PERIODIC_DELAY             ((PERIODIC_DELAY_SECONDS) * CLOCK_SECOND)
 
-static void handle_dis_timer(void *ptr);
+#define handle_dis_timer rpl_handle_dis_timer
+void handle_dis_timer(void *ptr);
 static void handle_dio_timer(void *ptr);
 static void handle_unicast_dio_timer(void *ptr);
 static void send_new_dao(void *ptr);
@@ -79,7 +80,8 @@ static void handle_dao_ack_timer(void *ptr);
 #if RPL_WITH_PROBING
 static void handle_probing_timer(void *ptr);
 #endif /* RPL_WITH_PROBING */
-static void handle_periodic_timer(void *ptr);
+#define handle_periodic_timer rpl_handle_periodic_timer
+void handle_periodic_timer(void *ptr);
 static void handle_state_update(void *ptr);
 
 /*---------------------------------------------------------------------------*/
@@ -98,7 +100,7 @@ rpl_timers_schedule_periodic_dis(void)
   }
 }
 /*---------------------------------------------------------------------------*/
-static void
+void
 handle_dis_timer(void *ptr)
 {
   if(!rpl_dag_root_is_root() &&
@@ -508,7 +510,7 @@ rpl_timers_init(void)
   rpl_timers_schedule_periodic_dis();
 }
 /*---------------------------------------------------------------------------*/
-static void
+void
 handle_periodic_timer(void *ptr)
 {
   if(curr_instance.used) {
