@@ -1209,6 +1209,93 @@ set_send_on_cca(uint8_t enable)
   }
   return RADIO_RESULT_OK;
 }
+static radio_result_t
+set_test_mode(bool enable, int channel, int power, bool modulated)
+{
+  uint32_t setupcmd_status;
+  rfc_CMD_RADIO_SETUP_t setupcmd;
+  uint32_t carriercmd_status;
+  rfc_CMD_TX_TEST_t carriercmd;
+  uint32_t freqcmd_status;
+  rfc_CMD_FS_t freqcmd;
+
+  /* If we are off, turn on first */
+  if(!rf_is_on() & enable) {
+    if(on() != RF_CORE_CMD_OK) {
+      return RADIO_RESULT_ERROR;
+    }
+  }
+
+  if (!enable) {
+    soft_off();
+    PRINTF("Carrier OFF\n");
+    return RADIO_RESULT_OK;
+  }
+
+  rf_core_restart_rat();
+
+  memset(&setupcmd, 0x00, sizeof(setupcmd));
+  setupcmd.commandNo = CMD_RADIO_SETUP;
+  setupcmd.condition.rule = 0x01;
+  setupcmd.mode = 0x01;
+  setupcmd.txPower = output_power[power].tx_power;
+
+  memset(&freqcmd, 0x00, sizeof(freqcmd));
+  freqcmd.commandNo = CMD_FS;
+  freqcmd.condition.rule = 0x01;
+  freqcmd.frequency = 2350 + (5 * channel);
+  freqcmd.synthConf.bTxMode = 0x01;
+
+  memset(&carriercmd, 0x00, sizeof(carriercmd));
+  carriercmd.commandNo = CMD_TX_TEST;
+  carriercmd.condition.rule = 0x01;
+  carriercmd.config.whitenMode = 0x02;
+  carriercmd.txWord = modulated ? 0xAAAA : 0xFFFF;
+  carriercmd.endTrigger.triggerType = 0x01;
+  carriercmd.syncWord = 0x71764129;
+
+  if(rf_core_send_cmd((uint32_t)&setupcmd, &setupcmd_status) == RF_CORE_CMD_ERROR) {
+    PRINTF("Radio Setup Error: CMDSTA=0x%08lx status=0x%04x\n", setupcmd_status, setupcmd.status);
+    return RADIO_RESULT_ERROR;
+  }
+
+  /* Wait until radio setup is done */
+  if(rf_core_wait_cmd_done(&setupcmd) != RF_CORE_CMD_OK) {
+    PRINTF("Radio Setup: wait, CMDSTA=0x%08lx, status=0x%04x\n",
+            setupcmd_status, setupcmd.status);
+    return RF_CORE_CMD_ERROR;
+  }
+
+  if(rf_core_send_cmd((uint32_t)&freqcmd, &freqcmd_status) == RF_CORE_CMD_ERROR) {
+    PRINTF("Frequency Synthesizer Error: CMDSTA=0x%08lx\n", freqcmd_status);
+    return RADIO_RESULT_ERROR;
+  }
+
+  /* Wait until frequency synthersizer command is done */
+  if(rf_core_wait_cmd_done(&freqcmd) != RF_CORE_CMD_OK) {
+    PRINTF("Frequency Synthesizer: wait, CMDSTA=0x%08lx, status=0x%04x\n",
+            freqcmd_status, freqcmd.status);
+    return RF_CORE_CMD_ERROR;
+  }
+
+  if(rf_core_send_cmd((uint32_t)&carriercmd, &carriercmd_status) == RF_CORE_CMD_ERROR) {
+    PRINTF("Carrier Generator Error: CMDSTA=0x%08lx\n", carriercmd_status);
+    return RADIO_RESULT_ERROR;
+  }
+
+  /* Verify that the carrier generator command is active */
+  if((carriercmd.status & RF_CORE_RADIO_OP_STATUS_ACTIVE) == RF_CORE_RADIO_OP_STATUS_ACTIVE) {
+    PRINTF("Carrier Generator: inactive, CMDSTA=0x%08lx, status=0x%04x\n",
+            carriercmd_status, carriercmd.status);
+    return RF_CORE_CMD_ERROR;
+  }
+
+  RTIMER_BUSYWAIT_UNTIL((carriercmd.status & RF_CORE_RADIO_OP_MASKED_STATUS) !=
+                        RF_CORE_RADIO_OP_MASKED_STATUS_RUNNING, RF_CORE_TEST_MODE_TIMEOUT);
+  PRINTF("Carrier ON\n");
+
+  return RADIO_RESULT_OK;
+}
 /*---------------------------------------------------------------------------*/
 static radio_result_t
 get_value(radio_param_t param, radio_value_t *value)
@@ -1499,6 +1586,24 @@ set_object(radio_param_t param, const void *src, size_t size)
 
     return rv;
   }
+  if(param == RADIO_POWER_MODE_CARRIER_ON ||
+     param == RADIO_POWER_MODE_CARRIER_OFF) {
+    int channel = ((int *)src)[0];
+    if(channel < 11 || channel > 26) {
+      return RADIO_RESULT_INVALID_VALUE;
+    }
+    int power = ((int *)src)[1];
+    if(power < 0 || power > 12) {
+      return RADIO_RESULT_INVALID_VALUE;
+    }
+    bool modulated = ((int *)src)[2] == 1;
+
+    return set_test_mode(
+      param == RADIO_POWER_MODE_CARRIER_ON,
+      channel, power, modulated
+    );
+  }
+
   return RADIO_RESULT_NOT_SUPPORTED;
 }
 /*---------------------------------------------------------------------------*/
