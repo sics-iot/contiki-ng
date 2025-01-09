@@ -52,10 +52,14 @@
 #include "coap-log.h"
 #define LOG_MODULE "coap"
 #define LOG_LEVEL  LOG_LEVEL_COAP
-
 /*---------------------------------------------------------------------------*/
 MEMB(observers_memb, coap_observer_t, COAP_MAX_OBSERVERS);
-LIST(observers_list);
+LIST(unactive_observers_list);
+LIST(pending_observers_list);
+
+static coap_timer_t observers_timer;
+/*---------------------------------------------------------------------------*/
+static void coap_observers_send_notification();
 /*---------------------------------------------------------------------------*/
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -81,9 +85,9 @@ add_observer(const coap_endpoint_t *endpoint, const uint8_t *token,
     o->last_mid = 0;
 
     LOG_INFO("Adding observer (%u/%u) for /%s [0x%02X%02X]\n",
-             list_length(observers_list) + 1, COAP_MAX_OBSERVERS,
+             list_length(unactive_observers_list) + 1, COAP_MAX_OBSERVERS,
              o->url, o->token[0], o->token[1]);
-    list_add(observers_list, o);
+    list_add(unactive_observers_list, o);
   }
 
   return o;
@@ -97,8 +101,22 @@ coap_remove_observer(coap_observer_t *o)
   LOG_INFO("Removing observer for /%s [0x%02X%02X]\n", o->url, o->token[0],
            o->token[1]);
 
+  list_remove(unactive_observers_list, o);
   memb_free(&observers_memb, o);
-  list_remove(observers_list, o);
+}
+/*---------------------------------------------------------------------------*/
+void
+coap_remove_all_observers(void)
+{
+  coap_observer_t *obs = NULL;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
+      obs = obs->next) {
+    coap_remove_observer(obs);
+  }
+  for(obs = (coap_observer_t *)list_head(pending_observers_list); obs;
+      obs = obs->next) {
+    coap_remove_observer(obs);
+  }
 }
 /*---------------------------------------------------------------------------*/
 int
@@ -110,7 +128,14 @@ coap_remove_observer_by_client(const coap_endpoint_t *endpoint)
   LOG_DBG("Remove check client ");
   LOG_DBG_COAP_EP(endpoint);
   LOG_DBG_("\n");
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
+      obs = obs->next) {
+    if(coap_endpoint_cmp(&obs->endpoint, endpoint)) {
+      coap_remove_observer(obs);
+      removed++;
+    }
+  }
+  for(obs = (coap_observer_t *)list_head(pending_observers_list); obs;
       obs = obs->next) {
     if(coap_endpoint_cmp(&obs->endpoint, endpoint)) {
       coap_remove_observer(obs);
@@ -127,7 +152,17 @@ coap_remove_observer_by_token(const coap_endpoint_t *endpoint,
   int removed = 0;
   coap_observer_t *obs = NULL;
 
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
+      obs = obs->next) {
+    LOG_DBG("Remove check Token 0x%02X%02X\n", token[0], token[1]);
+    if(coap_endpoint_cmp(&obs->endpoint, endpoint)
+       && obs->token_len == token_len
+       && memcmp(obs->token, token, token_len) == 0) {
+      coap_remove_observer(obs);
+      removed++;
+    }
+  }
+  for(obs = (coap_observer_t *)list_head(pending_observers_list); obs;
       obs = obs->next) {
     LOG_DBG("Remove check Token 0x%02X%02X\n", token[0], token[1]);
     if(coap_endpoint_cmp(&obs->endpoint, endpoint)
@@ -147,7 +182,17 @@ coap_remove_observer_by_uri(const coap_endpoint_t *endpoint,
   int removed = 0;
   coap_observer_t *obs = NULL;
 
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
+      obs = obs->next) {
+    LOG_DBG("Remove check URL %p\n", uri);
+    if((endpoint == NULL
+        || (coap_endpoint_cmp(&obs->endpoint, endpoint)))
+       && (obs->url == uri || memcmp(obs->url, uri, strlen(obs->url)) == 0)) {
+      coap_remove_observer(obs);
+      removed++;
+    }
+  }
+  for(obs = (coap_observer_t *)list_head(pending_observers_list); obs;
       obs = obs->next) {
     LOG_DBG("Remove check URL %p\n", uri);
     if((endpoint == NULL
@@ -166,7 +211,16 @@ coap_remove_observer_by_mid(const coap_endpoint_t *endpoint, uint16_t mid)
   int removed = 0;
   coap_observer_t *obs = NULL;
 
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
+      obs = obs->next) {
+    LOG_DBG("Remove check MID %u\n", mid);
+    if(coap_endpoint_cmp(&obs->endpoint, endpoint)
+       && obs->last_mid == mid) {
+      coap_remove_observer(obs);
+      removed++;
+    }
+  }
+  for(obs = (coap_observer_t *)list_head(pending_observers_list); obs;
       obs = obs->next) {
     LOG_DBG("Remove check MID %u\n", mid);
     if(coap_endpoint_cmp(&obs->endpoint, endpoint)
@@ -190,16 +244,14 @@ coap_notify_observers(coap_resource_t *resource)
 void
 coap_notify_observers_sub(coap_resource_t *resource, const char *subpath)
 {
-  /* build notification */
-  coap_message_t notification[1]; /* this way the message can be treated as pointer as usual */
-  coap_message_t request[1]; /* this way the message can be treated as pointer as usual */
-  coap_observer_t *obs = NULL;
   int url_len, obs_url_len;
   char url[COAP_OBSERVER_URL_LEN];
   uint8_t sub_ok = 0;
+  coap_observer_t *obs = NULL;
+  coap_observer_t *obs_aux = NULL;
 
   if(resource != NULL) {
-    url_len = strlen(resource->url);
+   url_len = strlen(resource->url);
     strncpy(url, resource->url, COAP_OBSERVER_URL_LEN - 1);
     if(url_len < COAP_OBSERVER_URL_LEN - 1 && subpath != NULL) {
       strncpy(&url[url_len], subpath, COAP_OBSERVER_URL_LEN - url_len - 1);
@@ -214,19 +266,15 @@ coap_notify_observers_sub(coap_resource_t *resource, const char *subpath)
   /* Ensure url is null terminated because strncpy does not guarantee this */
   url[COAP_OBSERVER_URL_LEN - 1] = '\0';
   /* url now contains the notify URL that needs to match the observer */
-  LOG_INFO("Notification from %s\n", url);
-
-  coap_init_message(notification, COAP_TYPE_NON, CONTENT_2_05, 0);
-  /* create a "fake" request for the URI */
-  coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
-  coap_set_header_uri_path(request, url);
 
   /* iterate over observers */
   url_len = strlen(url);
   /* Assumes lazy evaluation... */
   sub_ok = (resource == NULL) || (resource->flags & HAS_SUB_RESOURCES);
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
-      obs = obs->next) {
+
+  obs = (coap_observer_t *)list_head(unactive_observers_list);
+
+  while(obs) {
     obs_url_len = strlen(obs->url);
 
     /* Do a match based on the parent/sub-resource match so that it is
@@ -238,69 +286,125 @@ coap_notify_observers_sub(coap_resource_t *resource, const char *subpath)
         || (obs_url_len > url_len
             && sub_ok
             && obs->url[url_len] == '/'))
-       && strncmp(url, obs->url, url_len) == 0) {
-      coap_transaction_t *transaction = NULL;
+      && strncmp(url, obs->url, url_len) == 0) {
+      
+      /* To continue the iteration in the unactive observers list */
+      obs_aux = obs->next;
+      list_remove(unactive_observers_list, obs);
+      list_add(pending_observers_list, obs);
+      LOG_INFO("Marked observer /%s [0x%02X%02X] as pending (Pending list length: %d, Unactive list length: %d)\n",
+                obs->url, obs->token[0], obs->token[1], list_length(pending_observers_list), list_length(unactive_observers_list));
 
-      /*TODO implement special transaction for CON, sharing the same buffer to allow for more observers */
+      if(list_length(pending_observers_list) == 1) {
+        /* First observer, trigger send_notification. Timer is used to avoid stack overflow. */
+        coap_timer_set_callback(&observers_timer, coap_observers_send_notification);
+        coap_timer_set(&observers_timer, 10);        
+      }
+      obs = obs_aux;
+    } else {
+      obs = obs->next;
+    }
+  } 
+}
 
-      if((transaction = coap_new_transaction(coap_get_mid(), &obs->endpoint))) {
-        /* if COAP_OBSERVE_REFRESH_INTERVAL is zero, never send observations as confirmable messages */
-        if(COAP_OBSERVE_REFRESH_INTERVAL != 0
-            && (obs->obs_counter % COAP_OBSERVE_REFRESH_INTERVAL == 0)) {
-          LOG_DBG("           Force Confirmable for\n");
-          notification->type = COAP_TYPE_CON;
-        }
+static void
+coap_observers_con_notification_callback(void *data,  coap_message_t *response)
+{
+  coap_observer_t *obs = (coap_observer_t*) data;
+  list_remove(pending_observers_list, obs);
+  list_add(unactive_observers_list, obs);
+  LOG_INFO("Marked observer /%s [0x%02X%02X] as unactive (Pending list length: %d, Unactive list length: %d)\n",
+                obs->url, obs->token[0], obs->token[1], list_length(pending_observers_list), list_length(unactive_observers_list));
+  /* Trigger send_notification to check if there are more pendings. Timer is used to avoid stack overflow. */
+  coap_timer_set_callback(&observers_timer, coap_observers_send_notification);
+  coap_timer_set(&observers_timer, 1); 
+}
 
-        LOG_DBG("           Observer ");
-        LOG_DBG_COAP_EP(&obs->endpoint);
-        LOG_DBG_("\n");
+static void
+coap_observers_send_notification(coap_timer_t *timer)
+{
+  coap_observer_t *obs = list_head(pending_observers_list);
+  if(obs) {
+    /* build notification */
+    coap_message_t notification[1]; /* this way the message can be treated as pointer as usual */
+    coap_message_t request[1]; /* this way the message can be treated as pointer as usual */
 
-        /* update last MID for RST matching */
-        obs->last_mid = transaction->mid;
+    /* Ensure url is null terminated because strncpy does not guarantee this */
+    obs->url[COAP_OBSERVER_URL_LEN - 1] = '\0';
+    LOG_INFO("Notification from %s\n",obs->url);
 
-        /* prepare response */
-        notification->mid = transaction->mid;
+    coap_init_message(notification, COAP_TYPE_NON, CONTENT_2_05, 0);
+    /* create a "fake" request for the URI */
+    coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
+    coap_set_header_uri_path(request, obs->url);
 
-	int32_t new_offset = 0;
+    coap_transaction_t *transaction = NULL;
 
-        /* Either old style get_handler or the full handler */
-        if(coap_call_handlers(request, notification, transaction->message +
-                              COAP_MAX_HEADER_SIZE, COAP_MAX_CHUNK_SIZE,
-                              &new_offset) > 0) {
-          LOG_DBG("Notification on new handlers\n");
-        } else {
-          if(resource != NULL) {
-            resource->get_handler(request, notification,
-                                  transaction->message + COAP_MAX_HEADER_SIZE,
-                                  COAP_MAX_CHUNK_SIZE, &new_offset);
-          } else {
-            /* What to do here? */
-            notification->code = BAD_REQUEST_4_00;
-          }
-        }
+    if((transaction = coap_new_transaction(coap_get_mid(), &obs->endpoint))) {
+      if(obs->obs_counter % COAP_OBSERVE_REFRESH_INTERVAL == 0) {
+        LOG_DBG("           Force Confirmable for\n");
+        notification->type = COAP_TYPE_CON;
+      }
 
-        if(notification->code < BAD_REQUEST_4_00) {
-          coap_set_header_observe(notification, (obs->obs_counter)++);
-          /* mask out to keep the CoAP observe option length <= 3 bytes */
-          obs->obs_counter &= 0xffffff;
-        }
-        coap_set_token(notification, obs->token, obs->token_len);
+      LOG_DBG("           Observer ");
+      LOG_DBG_COAP_EP(&obs->endpoint);
+      LOG_DBG_("\n");
 
-	if(new_offset != 0) {
-	  coap_set_header_block2(notification,
-				 0,
-				 new_offset != -1,
-				 COAP_MAX_BLOCK_SIZE);
-	  coap_set_payload(notification,
-			   notification->payload,
-			   MIN(notification->payload_len,
-			       COAP_MAX_BLOCK_SIZE));
-	}
+      /* update last MID for RST matching */
+      obs->last_mid = transaction->mid;
 
-        transaction->message_len =
-          coap_serialize_message(notification, transaction->message);
+      /* prepare response */
+      notification->mid = transaction->mid;
 
+      int32_t new_offset = 0;
+
+      /* Either old style get_handler or the full handler */
+      if(coap_call_handlers(request, notification, transaction->message +
+                            COAP_MAX_HEADER_SIZE, COAP_MAX_CHUNK_SIZE,
+                            &new_offset) > 0) {
+        LOG_DBG("Notification on new handlers\n");
+      } else {
+        
+        /* What to do here? */
+        notification->code = BAD_REQUEST_4_00;
+        
+      }
+
+      if(notification->code < BAD_REQUEST_4_00) {
+        coap_set_header_observe(notification, (obs->obs_counter)++);
+        /* mask out to keep the CoAP observe option length <= 3 bytes */
+        obs->obs_counter &= 0xffffff;
+      }
+      coap_set_token(notification, obs->token, obs->token_len);
+
+    	if(new_offset != 0) {
+    	  coap_set_header_block2(notification,
+    				 0,
+    				 new_offset != -1,
+    				 COAP_MAX_BLOCK_SIZE);
+    	  coap_set_payload(notification,
+    			   notification->payload,
+    			   MIN(notification->payload_len,
+    			       COAP_MAX_BLOCK_SIZE));
+    	}
+
+      transaction->message_len =
+        coap_serialize_message(notification, transaction->message);
+
+      if(notification->type == COAP_TYPE_CON) {
+        /* If notification is confirmable, set a callback to mark as unactive and trigger send_notification again */
+        transaction->callback_data = obs;
+        transaction->callback = coap_observers_con_notification_callback;
         coap_send_transaction(transaction);
+      } else {
+        /* If notification is non confirmable, mark as unactive after sending and trigger send_notification */
+        coap_send_transaction(transaction);
+        list_remove(pending_observers_list, obs);
+        list_add(unactive_observers_list, obs);
+        LOG_INFO("Marked observer /%s [0x%02X%02X] as unactive (Pending list length: %d, Unactive list length: %d)\n",
+                obs->url, obs->token[0], obs->token[1], list_length(pending_observers_list), list_length(unactive_observers_list));
+        coap_timer_set_callback(&observers_timer, coap_observers_send_notification);
+        coap_timer_set(&observers_timer, 10); 
       }
     }
   }
@@ -338,7 +442,7 @@ coap_observe_handler(const coap_resource_t *resource, coap_message_t *coap_req,
           coap_set_payload(coap_res,
                            content,
                            snprintf(content, sizeof(content), "Added %u/%u",
-                                    list_length(observers_list),
+                                    list_length(unactive_observers_list),
                                     COAP_MAX_OBSERVERS));
 #endif
         } else {
@@ -360,7 +464,7 @@ coap_has_observers(char *path)
 {
   coap_observer_t *obs = NULL;
 
-  for(obs = (coap_observer_t *)list_head(observers_list); obs;
+  for(obs = (coap_observer_t *)list_head(unactive_observers_list); obs;
       obs = obs->next) {
     if((strncmp(obs->url, path, strlen(path))) == 0) {
       return 1;

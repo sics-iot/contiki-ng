@@ -93,16 +93,16 @@
 #define COAP_MAX_HEADER_SIZE           (4 + COAP_TOKEN_LEN + 3 + 1 + COAP_ETAG_LEN + 4 + 4 + 30)  /* 65 */
 #endif /* COAP_MAX_HEADER_SIZE */
 
-/* Number of observer slots (each takes abot xxx bytes) */
+/* Number of observer slots */
 #ifndef COAP_MAX_OBSERVERS
-#define COAP_MAX_OBSERVERS    COAP_MAX_OPEN_TRANSACTIONS - 1
+#define COAP_MAX_OBSERVERS      5 
 #endif /* COAP_MAX_OBSERVERS */
 
 /* Interval in notifies in which NON notifies are changed to CON notifies to check client. */
 #ifdef COAP_CONF_OBSERVE_REFRESH_INTERVAL
 #define COAP_OBSERVE_REFRESH_INTERVAL COAP_CONF_OBSERVE_REFRESH_INTERVAL
 #else
-#define COAP_OBSERVE_REFRESH_INTERVAL  20
+#define COAP_OBSERVE_REFRESH_INTERVAL  5
 #endif /* COAP_OBSERVE_REFRESH_INTERVAL */
 
 /* Maximal length of observable URL */
