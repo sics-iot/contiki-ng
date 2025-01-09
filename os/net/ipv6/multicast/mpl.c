@@ -1414,11 +1414,6 @@ accept(uint8_t in)
   }
 #endif
 
-  if(uip_ds6_is_my_addr(&UIP_IP_BUF->srcipaddr) && in == MPL_DGRAM_IN) {
-    LOG_WARN("Received message from ourselves.\n");
-    return UIP_MCAST6_DROP;
-  }
-
   /* Check the Next Header field: Must be HBHO */
   if(UIP_IP_BUF->proto != UIP_PROTO_HBHO) {
     LOG_ERR("Mcast I/O, bad proto\n");
