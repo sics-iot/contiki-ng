@@ -43,3 +43,6 @@
 [submodule "os/net/security/mbedtls"]
 	path = os/net/security/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git
+[submodule "os/net/security/micro-ecc"]
+	path = os/net/security/micro-ecc
+	url = https://github.com/kmackay/micro-ecc.git
