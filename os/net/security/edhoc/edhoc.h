@@ -145,10 +145,10 @@ void edhoc_storage_init(void);
 edhoc_context_t *edhoc_new(void);
 
 /**
- * \brief Initialize the EDHOC ctx with the define EDHOC parameters
- * \return edhoc_ctx_t EDHOC context struct
+ * \brief Initialize the EDHOC Context with the defined EDHOC parameters
+ * \param ctx An EDHOC context struct to fill in.
  *
- * Used in the edho_new to set the default protocol definitions and in the Responder to
+ * Used in the edhoc_new to set the default protocol definitions and in the Responder to
  * reset the initial values to prepare for a new EDHOC connection
  */
 
@@ -241,11 +241,9 @@ uint8_t edhoc_gen_msg_error(uint8_t *msg_er, const edhoc_context_t *ctx, int8_t 
 /**
  * \brief Authenticate the rx message
  * \param ctx EDHOC Context struct
- * \param pt A pointer to the SIGN on the Rx msg buffer.
- * \param cipher_len Length of the cipher msg
  * \param ad A pointer to a buffer to copy the Application Data of the rx message
- * \param key The other party authentication key, used for authentication
- * \retval ERR_CODE when an EDHOC ERROR is detected return a negative number corresponding to the specific error code
+ * \param msg2 Determines whether the message is a Message 2
+ * \retval ERR_CODE When an EDHOC ERROR is detected, we return a negative number corresponding to the specific error code
  * \retval ad_sz The length of the Application Data received in Message 2, when EDHOC success
  *
  * Used by Initiator and Responder EDHOC role to Authenticate the other party
@@ -261,9 +259,10 @@ int edhoc_authenticate_msg(edhoc_context_t *ctx, uint8_t *ad, bool msg2);
 /**
  * \brief EDHOC Key Derivation Function (KDF) based on HMAC-based Expand (RFC 5869)
  * \param result OKM (Output Keying Material) - the buffer where the derived key will be stored.
- * \param key PRK (Pseudorandom Key) - a pseudorandom key used as input to the key derivation, should be at least `HASH_LEN` bits.
+ * \param prk PRK (Pseudorandom Key) - a pseudorandom key used as input to the key derivation, should be at least `HASH_LEN` bits.
  * \param info_label Label used to generate the CBOR-based info input for key derivation.
  * \param context Context data used to generate the info input for key derivation.
+ * \param context_sz The size of the Context data.
  * \param length Desired length of the output key material (OKM) in bits.
  * \return 1 if key derivation is successful, or a negative error code on failure.
  *
@@ -283,11 +282,11 @@ int16_t edhoc_kdf(const uint8_t *prk, uint8_t info_label, const uint8_t *context
 
 /**
  * \brief HMAC-based Key Expansion Function for EDHOC context using HKDF (RFC 5869)
- * \param result OKM (Output Keying Material) - the buffer where the derived key will be stored.
- * \param key PRK (Pseudorandom Key) - a pseudorandom key used as input for the HMAC-based key derivation.
+ * \param prk PRK (Pseudorandom Key) - a pseudorandom key used as input for the HMAC-based key derivation.
  * \param info Additional context information used in the key derivation, which is generated from the info_label and context.
  * \param info_sz The size of the info parameter in bytes.
  * \param length The desired length of the output key material (OKM) in bits.
+ * \param result OKM (Output Keying Material) - the buffer where the derived key will be stored.
  * \return 1 if key derivation is successful, or a negative error code on failure.
  *
  * This function implements the HKDF-Expand function as described in RFC 5869.

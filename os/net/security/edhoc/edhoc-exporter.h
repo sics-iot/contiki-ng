@@ -96,7 +96,10 @@ void print_oscore_ctx(oscore_ctx_t *osc);
  * \brief Derive an application-specific key from EDHOC
  * \param result Output buffer where the derived key will be stored
  * \param in_key PRK_Exporter key to use
- * \param info_label Label used to differentiate different key derivation outputs
+ * \param exporter_label Label used to differentiate different key derivation outputs
+ * \param context Context data used to generate the info input for key derivatio
+n
+ * \param context_sz The size of the context data
  * \param length Length of the key to be derived
  * \return Negative number indicating an error code if key derivation fails, 0 on success
  *
@@ -104,7 +107,9 @@ void print_oscore_ctx(oscore_ctx_t *osc);
  * The key derivation is based on the provided label and length. This can be used for exporting keys
  * after the successful completion of the EDHOC protocol.
  */
-int8_t edhoc_exporter(const uint8_t *in_key, uint8_t exporter_label, const uint8_t *context, uint8_t context_sz, uint16_t length, uint8_t *result);
+int8_t edhoc_exporter(const uint8_t *in_key, uint8_t exporter_label,
+                      const uint8_t *context, uint8_t context_sz,
+                      uint16_t length, uint8_t *result);
 
 #endif /* _EDHOC_EXPORTER_H_ */
 /** @} */

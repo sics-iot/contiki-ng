@@ -50,8 +50,8 @@
 /**
  * \brief Handle the EDHOC Message 1 received
  * \param ctx EDHOC Context struct
- * \param buffer A pointer to the buffer containing the EDHOC message received
- * \param buff_sz Size of the EDHOC message received
+ * \param payload A pointer to the buffer containing the EDHOC message received
+ * \param payload_sz Size of the EDHOC message received
  * \param ad A pointer to a buffer to copy the Application Data received in Message 1
  * \retval negative number (EDHOC ERROR CODES) when an EDHOC ERROR is detected
  * \retval ad_sz The length of the Application Data received in Message 1, when EDHOC success
