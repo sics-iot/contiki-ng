@@ -1034,7 +1034,7 @@ PT_THREAD(tsch_rx_slot(struct pt *pt, struct rtimer *t))
 /*---------------------------------------------------------------------------*/
 /* Protothread for slot operation, called from rtimer interrupt
  * and scheduled from tsch_schedule_slot_operation */
-static
+
 PT_THREAD(tsch_slot_operation(struct rtimer *t, void *ptr))
 {
   TSCH_DEBUG_INTERRUPT();

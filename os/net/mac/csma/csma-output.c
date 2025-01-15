@@ -137,7 +137,8 @@ static void packet_sent(struct neighbor_queue *n,
     struct packet_queue *q,
     int status,
     int num_transmissions);
-static void transmit_from_queue(void *ptr);
+#define transmit_from_queue csma_transmit_from_queue
+void transmit_from_queue(void *ptr);
 /*---------------------------------------------------------------------------*/
 static struct neighbor_queue *
 neighbor_queue_from_addr(const linkaddr_t *addr)
@@ -254,7 +255,7 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
   return last_sent_ok;
 }
 /*---------------------------------------------------------------------------*/
-static void
+void
 transmit_from_queue(void *ptr)
 {
   struct neighbor_queue *n = ptr;
