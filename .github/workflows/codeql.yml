@@ -66,7 +66,7 @@ jobs:
         git lfs checkout
 
     - name: arm-none-eabi-gcc GNU Arm Embedded Toolchain
-      uses: carlosperate/arm-none-eabi-gcc-action@v1.9.1
+      uses: carlosperate/arm-none-eabi-gcc-action@v1.10.0
       with:
         release: '10.3-2021.10'
 
