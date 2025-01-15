@@ -47,6 +47,9 @@
 #include "coap.h"
 #include "coap-engine.h"
 #include "coap-timer.h"
+#include "coap-constants.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 /*
  * Modulo mask (thus +1) for a random number to get the tick number for the random
@@ -60,9 +63,12 @@ typedef struct coap_transaction {
   struct coap_transaction *next;        /* for LIST */
 
   uint16_t mid;
+  uint8_t token[COAP_TOKEN_LEN];
+  uint8_t token_len;
   coap_timer_t retrans_timer;
   uint32_t retrans_interval;
   uint8_t retrans_counter;
+  bool acked;
 
   coap_endpoint_t endpoint;
 
@@ -74,10 +80,11 @@ typedef struct coap_transaction {
                                                  * Use snprintf(buf, len+1, "", ...) to completely fill payload */
 } coap_transaction_t;
 
-coap_transaction_t *coap_new_transaction(uint16_t mid, const coap_endpoint_t *ep);
+coap_transaction_t *coap_new_transaction(uint16_t mid, const uint8_t *token, uint8_t token_len, const coap_endpoint_t *ep);
 void coap_send_transaction(coap_transaction_t *t);
 void coap_clear_transaction(coap_transaction_t *t);
 coap_transaction_t *coap_get_transaction_by_mid(uint16_t mid);
-
+coap_transaction_t *coap_get_transaction_by_token_and_endpoint(const uint8_t *token, uint8_t token_len,
+                                                               const coap_endpoint_t *endpoint);
 #endif /* COAP_TRANSACTIONS_H_ */
 /** @} */

@@ -76,7 +76,9 @@ res_post_handler(coap_message_t *request, coap_message_t *response, uint8_t *buf
 
     /* Send first block */
     coap_transaction_t *transaction = NULL;
-    if((transaction = coap_new_transaction(request_metadata.mid, &request_metadata.endpoint))) {
+    if((transaction = coap_new_transaction(request_metadata.mid,
+                                           request_metadata.token, request_metadata.token_len,
+                                           &request_metadata.endpoint))) {
       coap_message_t resp[1]; /* This way the message can be treated as pointer as usual. */
 
       /* Restore the request information for the response. */

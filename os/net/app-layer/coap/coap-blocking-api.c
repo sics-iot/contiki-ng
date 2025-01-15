@@ -87,7 +87,9 @@ PT_THREAD(coap_blocking_request
 
   do {
     request->mid = coap_get_mid();
-    if((state->transaction = coap_new_transaction(request->mid, remote_ep))) {
+    if((state->transaction = coap_new_transaction(request->mid,
+                                                  request->token, request->token_len,
+                                                  remote_ep))) {
       state->transaction->callback = coap_blocking_request_callback;
       state->transaction->callback_data = blocking_state;
 

@@ -97,7 +97,10 @@ res_resume_handler()
 {
   if(separate_active) {
     coap_transaction_t *transaction = NULL;
-    if((transaction = coap_new_transaction(separate_store->request_metadata.mid, &separate_store->request_metadata.endpoint))) {
+    if((transaction = coap_new_transaction(separate_store->request_metadata.mid,
+                                           separate_store->request_metadata.token,
+                                           separate_store->request_metadata.token_len,
+                                           &separate_store->request_metadata.endpoint))) {
       coap_message_t response[1]; /* This way the message can be treated as pointer as usual. */
 
       /* Restore the request information for the response. */

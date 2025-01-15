@@ -65,7 +65,9 @@ progress_request(coap_callback_request_state_t *callback_state) {
   coap_message_t *request = state->request;
   request->mid = coap_get_mid();
   if((state->transaction =
-      coap_new_transaction(request->mid, state->remote_endpoint))) {
+      coap_new_transaction(request->mid,
+                           request->token, request->token_len,
+                           state->remote_endpoint))) {
     state->transaction->callback = coap_request_callback;
     state->transaction->callback_data = state;
 
