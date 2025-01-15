@@ -1913,17 +1913,6 @@ input(void)
 
       LOG_INFO("input: received first element of a fragmented packet (tag %d, len %d)\n",
              frag_tag, frag_size);
-
-      /* Add the fragment to the fragmentation context */
-      frag_context = add_fragment(frag_tag, frag_size, frag_offset);
-
-      if(frag_context == -1) {
-        LOG_ERR("input: failed to allocate new reassembly context\n");
-        return;
-      }
-
-      buffer = frag_info[frag_context].first_frag;
-      buffer_size = SICSLOWPAN_FIRST_FRAGMENT_SIZE;
       break;
     case SICSLOWPAN_DISPATCH_FRAGN:
       /*
@@ -1952,14 +1941,9 @@ input(void)
         last_fragment = 1;
       }
       is_fragment = 1;
-      break;
+      goto copypayload;
     default:
       break;
-  }
-
-  if(is_fragment && !first_fragment) {
-    /* this is a FRAGN, skip the header compression dispatch section */
-    goto copypayload;
   }
 #endif /* SICSLOWPAN_CONF_FRAG */
 
@@ -2028,17 +2012,50 @@ input(void)
     if(req_size > sizeof(uip_buf)) {
 #if SICSLOWPAN_CONF_FRAG
       LOG_ERR(
-          "input: packet and fragment context %u dropped, minimum required IP_BUF size: %d+%d+%d=%u (current size: %u)\n",
-          frag_context,
+          "input: packet%s dropped, minimum required IP_BUF size: %d+%d+%d=%u (current size: %u)\n",
+          !first_fragment ? " and fragment context" : "",
           uncomp_hdr_len, (uint16_t)(frag_offset << 3),
           packetbuf_payload_len, req_size, (unsigned)sizeof(uip_buf));
       /* Discard all fragments for this contex, as reassembling this particular fragment would
        * cause an overflow in uipbuf */
-      clear_fragments(frag_context);
+      if(!first_fragment) {
+        clear_fragments(frag_context);
+      }
 #endif /* SICSLOWPAN_CONF_FRAG */
       return;
     }
   }
+
+#if SICSLOWPAN_CONF_FRAG
+  if(first_fragment) {
+    if((uncomp_hdr_len + packetbuf_payload_len) < frag_size) {
+      /* create context since there are more fragments to come */
+      frag_context = add_fragment(frag_tag, frag_size, frag_offset);
+      if(frag_context == -1) {
+        LOG_ERR("input: failed to allocate new reassembly context\n");
+        return;
+      }
+      frag_info[frag_context].reassembled_len
+          = frag_info[frag_context].first_frag_len
+          = uncomp_hdr_len + packetbuf_payload_len;
+      /* copy uncompressed header to new context */
+      memcpy(frag_info[frag_context].first_frag, buffer, uncomp_hdr_len);
+      buffer = frag_info[frag_context].first_frag;
+      buffer_size = SICSLOWPAN_FIRST_FRAGMENT_SIZE;
+    } else {
+      /* since we expect no more fragments, leave uncompressed header in uip */
+      last_fragment = 1;
+    }
+  } else if(last_fragment) {
+    /* For the last fragment, we are OK if there is extraneous bytes at
+       the end of the packet. */
+    frag_info[frag_context].reassembled_len = frag_size;
+    /* copy to uip */
+    if(!copy_frags2uip(frag_context)) {
+      return;
+    }
+  }
+#endif /* SICSLOWPAN_CONF_FRAG */
 
   /* copy the payload if buffer is non-null - which is only the case with first fragment
      or packets that are non fragmented */
@@ -2050,26 +2067,7 @@ input(void)
     memcpy((uint8_t *)buffer + uncomp_hdr_len, packetbuf_ptr + packetbuf_hdr_len, packetbuf_payload_len);
   }
 
-  /* update processed_ip_in_len if fragment, sicslowpan_len otherwise */
-
 #if SICSLOWPAN_CONF_FRAG
-  if(frag_size > 0) {
-    /* Add the size of the header only for the first fragment. */
-    if(first_fragment != 0) {
-      frag_info[frag_context].reassembled_len = uncomp_hdr_len + packetbuf_payload_len;
-      frag_info[frag_context].first_frag_len = uncomp_hdr_len + packetbuf_payload_len;
-    }
-    /* For the last fragment, we are OK if there is extrenous bytes at
-       the end of the packet. */
-    if(last_fragment != 0) {
-      frag_info[frag_context].reassembled_len = frag_size;
-      /* copy to uip */
-      if(!copy_frags2uip(frag_context)) {
-        return;
-      }
-    }
-  }
-
   /*
    * If we have a full IP packet in sicslowpan_buf, deliver it to
    * the IP stack
