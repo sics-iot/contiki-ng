@@ -103,10 +103,11 @@ acked(struct tcp_socket *s)
 static void
 newdata(struct tcp_socket *s)
 {
-  uint16_t len, copylen, bytesleft;
+  uint16_t len, copylen, inputlen, bytesleft;
   uint8_t *dataptr;
   len = uip_datalen();
   dataptr = uip_appdata;
+  bytesleft = s->input_data_len;
 
   /* We have a segment with data coming in. We copy as much data as
      possible into the input buffer and call the input callback
@@ -115,21 +116,29 @@ newdata(struct tcp_socket *s)
      consumed. If there is data to be retained, the highest bytes of
      data are copied down into the input buffer. */
   do {
-    copylen = MIN(len, s->input_data_maxlen);
-    memcpy(s->input_data_ptr, dataptr, copylen);
+    copylen = MIN(len, s->input_data_maxlen - bytesleft);
+    inputlen = copylen + bytesleft;
+    memcpy(s->input_data_ptr + bytesleft, dataptr, copylen);
     if(s->input_callback) {
       bytesleft = s->input_callback(s, s->ptr,
-				    s->input_data_ptr, copylen);
+				    s->input_data_ptr, inputlen);
     } else {
       bytesleft = 0;
     }
     if(bytesleft > 0) {
-      PRINTF("tcp: newdata, bytesleft > 0 (%d) not implemented\n", bytesleft);
+      if(bytesleft > inputlen) {
+        PRINTF("tcp: newdata, tcp_socket_data_callback retains more data (%d)"
+              " than in buffer (%d)\n", bytesleft, inputlen);
+        bytesleft = inputlen;
+      }
+      memmove(s->input_data_ptr, s->input_data_ptr + inputlen - bytesleft, bytesleft);
     }
     dataptr += copylen;
     len -= copylen;
 
   } while(len > 0);
+
+  s->input_data_len = bytesleft;
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -273,6 +282,7 @@ tcp_socket_register(struct tcp_socket *s, void *ptr,
     return -1;
   }
   s->ptr = ptr;
+  s->input_data_len = 0;
   s->input_data_ptr = input_databuf;
   s->input_data_maxlen = input_databuf_len;
   s->output_data_len = 0;
