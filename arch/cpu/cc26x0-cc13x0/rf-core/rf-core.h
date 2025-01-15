@@ -316,6 +316,8 @@ typedef struct rf_core_primary_mode_s {
 /* How long to wait for the RF to finish TX of a packet or an ACK */
 #define RF_CORE_TX_FINISH_TIMEOUT (RTIMER_SECOND >> 7)
 
+/* How long to wait for the RF to set up test mode: around 0.1 msec */
+#define RF_CORE_TEST_MODE_TIMEOUT (RTIMER_SECOND >> 14)
 /*---------------------------------------------------------------------------*/
 /* Make the main driver process visible to mode drivers */
 PROCESS_NAME(rf_core_process);
