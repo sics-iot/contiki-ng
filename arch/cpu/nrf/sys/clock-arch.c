@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2024 Marcel Graber <marcel@clever.design>
  * Copyright (C) 2020 Yago Fontoura do Rosario <yago.rosario@hotmail.com.br>
  * All rights reserved.
  *
@@ -40,7 +41,9 @@
  *
  * \file
  *         Software clock implementation for the nRF.
+ *
  * \author
+ *         Marcel Graber <marcel@clever.design> (lowpower mode)
  *         Yago Fontoura do Rosario <yago.rosario@hotmail.com.br>
  *
  */
@@ -50,6 +53,7 @@
 #include "nrfx_config.h"
 #include "nrfx_rtc.h"
 #include "nrfx_clock.h"
+#include "soc-rtc.h"
 
 #if CLOCK_SIZE != 4
 /* 64 bit variables may not be read atomically without extra handling */
@@ -62,103 +66,30 @@
 #define NRF_CLOCK_RTC_INSTANCE 0
 #endif
 
-static void clock_update(void);
-
 /*---------------------------------------------------------------------------*/
-/**< RTC instance used for platform clock */
-static const nrfx_rtc_t rtc = NRFX_RTC_INSTANCE(NRF_CLOCK_RTC_INSTANCE);
-/*---------------------------------------------------------------------------*/
-static volatile clock_time_t ticks;
-/*---------------------------------------------------------------------------*/
-static void
-clock_handler(nrfx_clock_evt_type_t event)
+void
+clock_update(void)
 {
-  (void) event;
-}
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function for handling the RTC<instance> interrupts
- * @param int_type Type of interrupt to be handled
- */
-static void
-rtc_handler(nrfx_rtc_int_type_t int_type)
-{
-  if(int_type == NRFX_RTC_INT_TICK) {
-    clock_update();
+  if(etimer_pending() && !CLOCK_LT(clock_time(), etimer_next_expiration_time())) {
+    etimer_request_poll();
   }
-}
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function starting the internal LFCLK XTAL oscillator.
- */
-static void
-lfclk_config(void)
-{
-  nrfx_err_t err_code = nrfx_clock_init(clock_handler);
-
-  if(err_code != NRFX_SUCCESS) {
-    return;
-  }
-
-  nrfx_clock_enable();
-
-  nrfx_clock_lfclk_start();
-}
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function initialization and configuration of RTC driver instance.
- */
-static void
-rtc_config(void)
-{
-  nrfx_err_t err_code;
-
-  /*Initialize RTC instance */
-  nrfx_rtc_config_t config = NRFX_RTC_DEFAULT_CONFIG;
-  config.prescaler = 255;
-  config.interrupt_priority = 6;
-  config.reliable = 0;
-
-  err_code = nrfx_rtc_init(&rtc, &config, rtc_handler);
-
-  if(err_code != NRFX_SUCCESS) {
-    return;
-  }
-
-  /*Enable tick event & interrupt */
-  nrfx_rtc_tick_enable(&rtc, true);
-
-  /*Power on RTC instance */
-  nrfx_rtc_enable(&rtc);
 }
 /*---------------------------------------------------------------------------*/
 void
 clock_init(void)
 {
-  ticks = 0;
-  lfclk_config();
-  rtc_config();
 }
 /*---------------------------------------------------------------------------*/
 clock_time_t
 clock_time(void)
 {
-  return ticks;
-}
-/*---------------------------------------------------------------------------*/
-static void
-clock_update(void)
-{
-  ticks++;
-  if(etimer_pending() && !CLOCK_LT(ticks, etimer_next_expiration_time())) {
-    etimer_request_poll();
-  }
+  return soc_rtc_get_clock_ticks();
 }
 /*---------------------------------------------------------------------------*/
 unsigned long
 clock_seconds(void)
 {
-  return (unsigned long)(ticks / CLOCK_SECOND);
+  return (unsigned long)(clock_time() / CLOCK_SECOND);
 }
 /*---------------------------------------------------------------------------*/
 void

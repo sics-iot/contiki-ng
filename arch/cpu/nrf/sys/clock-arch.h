@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Yago Fontoura do Rosario <yago.rosario@hotmail.com.br>
+ * Copyright (C) 2024 Marcel Graber <marcel@clever.design>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,41 +27,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*---------------------------------------------------------------------------*/
 /**
- * \addtogroup nrf-platforms
+ * \addtogroup nrf
+ * @{
+ *
+ * \addtogroup nrf-sys System drivers
  * @{
  *
  * \file
- *  Configuration for the nrf platform
+ *         Header file for the clock.h extension
+ * \author
+ *         Marcel Graber <marcel@clever.design>
+ *
  */
-#ifndef LPM_H
-#define LPM_H
-
+#ifndef SOC_CLOCK_ARCH_H_
+#define SOC_CLOCK_ARCH_H_
+/*---------------------------------------------------------------------------*/
 #include "contiki.h"
+/*---------------------------------------------------------------------------*/
+/* Prototype of a function in clock.c. Called every time the handler fires */
 
-#include "energest.h"
-#include "critical.h"
-#include "process.h"
+/**
+ * \brief Trigger clock based tasks
+ *
+ * When the MCU is not in sleep, it will call this function every
+ * 1/CLCK_SECOND
+ */
+void clock_update(void);
 
+/*---------------------------------------------------------------------------*/
+#endif /* SOC_CLOCK_ARCH_H_ */
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Stop and wait for an interrupt
+ * @}
+ * @}
  */
-static inline void
-lpm_drop(void)
-{
-  int_master_status_t status;
-  int abort;
-  status = critical_enter();
-  abort = process_nevents();
-  if(!abort) {
-    ENERGEST_SWITCH(ENERGEST_TYPE_CPU, ENERGEST_TYPE_LPM);
-    __WFI();
-    ENERGEST_SWITCH(ENERGEST_TYPE_LPM, ENERGEST_TYPE_CPU);
-  }
-  critical_exit(status);
-}
-/*---------------------------------------------------------------------------*/
-#endif /* LPM_H */
-
-/** @} */

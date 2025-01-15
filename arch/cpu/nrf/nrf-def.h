@@ -75,11 +75,12 @@
 #define RADIO_BYTE_AIR_TIME          32
 #define RADIO_SHR_LEN                 5 /* Synch word + SFD */
 #define RADIO_DELAY_BEFORE_TX \
-  ((unsigned)US_TO_RTIMERTICKS(RADIO_SHR_LEN * RADIO_BYTE_AIR_TIME))
+        ((unsigned)US_TO_RTIMERTICKS(RADIO_SHR_LEN * RADIO_BYTE_AIR_TIME))
 #define RADIO_DELAY_BEFORE_RX         ((unsigned)US_TO_RTIMERTICKS(250))
 #define RADIO_DELAY_BEFORE_DETECT     0
 /*---------------------------------------------------------------------------*/
-#define RTIMER_ARCH_SECOND 62500
+/* RTC with no prescaler */
+#define RTIMER_ARCH_SECOND 32768
 /*---------------------------------------------------------------------------*/
 #define GPIO_HAL_CONF_ARCH_HDR_PATH          "gpio-hal-arch.h"
 #define GPIO_HAL_CONF_ARCH_SW_TOGGLE         0
