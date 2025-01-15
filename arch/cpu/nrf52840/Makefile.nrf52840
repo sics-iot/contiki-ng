@@ -71,6 +71,20 @@ LDFLAGS += -Wl,--defsym=__ram=$(__RAM)
 LDFLAGS += -Wl,--defsym=__ram_size=$(__RAM_SIZE)
 TARGET_LIBFILES += -lc -lnosys
 
+# enable nvmc flash driver for nrf52840
+ifeq ($(NRF52840_USE_NVMC_FLASH),1)
+  CFLAGS += -DNRF_FSTORAGE_ENABLED=1
+  CFLAGS += -DNRF_FSTORAGE_PARAM_CHECK_DISABLED=0
+  
+  NRF52_SDK_C_SRCS += components/libraries/fstorage/nrf_fstorage.c \
+  components/libraries/fstorage/nrf_fstorage_nvmc.c \
+  components/libraries/atomic/nrf_atomic.c \
+  modules/nrfx/hal/nrf_nvmc.c
+  
+  NRF52_SDK_INC_PATHS += components/libraries/fstorage
+  NRF52_SDK_INC_PATHS += components/libraries/atomic
+endif
+
 # nRF52 SDK sources
 NRF52_SDK_C_SRCS += components/boards/boards.c \
   components/libraries/util/app_error.c \
