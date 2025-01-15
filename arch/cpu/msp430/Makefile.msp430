@@ -99,8 +99,6 @@ LDFLAGS += -Wl,--defsym=_stack=_end
 
 CFLAGS  += $(CFLAGSNO)
 
-PROJECT_OBJECTFILES += ${addprefix $(OBJECTDIR)/,$(CONTIKI_TARGET_MAIN:.c=.o)}
-
 ### CPU-dependent cleanup files
 CLEAN += *.firmware *.ihex
 
