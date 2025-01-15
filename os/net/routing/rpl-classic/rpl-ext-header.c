@@ -706,7 +706,13 @@ rpl_ext_header_update(void)
       if(RPL_IS_NON_STORING(default_instance)) {
         return insert_srh_header();
       } else {
-        return insert_hbh_header(default_instance);
+        if(uip_ds6_route_lookup(&UIP_IP_BUF->destipaddr) != NULL) {
+          /* the destination is in the DAG */
+          return insert_hbh_header(default_instance);
+        } else {
+          /* no need to add the hop-by-hop option */
+          return 1;
+        }
       }
     } else {
       /* dest is outside of DODAGs; no ext header is needed. */

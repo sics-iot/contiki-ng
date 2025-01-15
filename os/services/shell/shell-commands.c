@@ -385,7 +385,11 @@ PT_THREAD(cmd_help(struct pt *pt, shell_output_func output, char *args))
   /* Note: we explicitly don't expend any code space to deal with shadowing */
   for(set = list_head(shell_command_sets); set != NULL; set = list_item_next(set)) {
     for(cmd = set->commands; cmd->name != NULL; ++cmd) {
-      SHELL_OUTPUT(output, "%s\n", cmd->help);
+      if(cmd->help == NULL) {
+        /* nothing to print */
+      } else {
+        SHELL_OUTPUT(output, "%s\n", cmd->help);
+      }
     }
   }
 
