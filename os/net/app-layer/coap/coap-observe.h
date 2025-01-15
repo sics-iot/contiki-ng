@@ -58,9 +58,6 @@ typedef struct coap_observer {
   uint16_t last_mid;
 
   int32_t obs_counter;
-
-  coap_timer_t retrans_timer;
-  uint8_t retrans_counter;
 } coap_observer_t;
 
 void coap_remove_observer(coap_observer_t *o);
@@ -80,6 +77,8 @@ void coap_observe_handler(const coap_resource_t *resource,
                           coap_message_t *response);
 
 uint8_t coap_has_observers(char *path);
+
+void coap_remove_all_observers(void);
 
 #endif /* COAP_OBSERVE_H_ */
 /** @} */
