@@ -57,6 +57,7 @@
 #include "dev/cc26xx-uart.h"
 #include "dev/soc-rtc.h"
 #include "dev/serial-line.h"
+#include "dev/soc-trng.h"
 #include "rf-core/rf-core.h"
 #include "sys_ctrl.h"
 #include "uart.h"
@@ -172,7 +173,10 @@ platform_init_stage_one()
 void
 platform_init_stage_two()
 {
-  random_init(0x1234);
+  soc_trng_init();
+
+  /* Use TRNG to seed random lib. */
+  random_init((uint16_t)soc_trng_rand_synchronous());
 
   /* Character I/O Initialisation */
 #if TI_UART_CONF_ENABLE

@@ -29,35 +29,39 @@
  */
 /*---------------------------------------------------------------------------*/
 /**
- * \addtogroup cc26xx-trng
+ * \defgroup cc13x0-cc26x0-prng Pseudo Random Number Generator (PRNG) for CC13x0/CC26x0.
  * @{
  *
- * \file
+ * This file overrides os/lib/random.c. Note that the file name must
+ * match the original file for the override to work.
  *
- * This file overrides os/lib/random.c and calls SoC-specific RNG functions
+ * \file
+ *        Implementation of Pseudo Random Number Generator for CC13x0/CC26x0.
  */
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
-#include "dev/soc-trng.h"
+#include "lib/smallprng.h"
+/*---------------------------------------------------------------------------*/
+static smallprng_t smallprng;
 /*---------------------------------------------------------------------------*/
 /**
- * \brief      Generates a new random number using the hardware TRNG.
- * \return     The random number.
+ * \brief   Generates a new random number using smallprng.
+ * \return  The random number.
  */
 unsigned short
 random_rand(void)
 {
-  return (unsigned short)soc_trng_rand_synchronous() & 0xFFFF;
+  return (unsigned short)smallprng_rand(&smallprng);
 }
 /*---------------------------------------------------------------------------*/
 /**
- * \brief Function required by the API
- * \param seed Ignored.
+ * \brief       Initialize the PRNG.
+ * \param seed  Seed for the PRNG.
  */
 void
 random_init(unsigned short seed)
 {
-  soc_trng_init();
+  smallprng_init(&smallprng, seed);
 }
 /*---------------------------------------------------------------------------*/
 /**
