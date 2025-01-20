@@ -1,0 +1,46 @@
+[iana_cbor_simple_value_source]
+title = "IANA CBOR Content-Formats"
+csv_url = "https://www.iana.org/assignments/cbor-simple-values/simple.csv"
+source_url = "https://www.iana.org/assignments/cbor-simple-values/cbor-simple-values.xhtml#simple"
+
+[iana_cbor_tag_source]
+title = "IANA CBOR Tags"
+csv_url = "https://www.iana.org/assignments/cbor-tags/tags.csv"
+source_url = "https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml#tags"
+
+[iana_coap_request_response_source]
+title = "IANA CoAP Request/Response"
+# Method
+request_csv_url = "https://www.iana.org/assignments/core-parameters/method-codes.csv"
+request_source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes"
+# Response
+response_csv_url = "https://www.iana.org/assignments/core-parameters/response-codes.csv"
+response_source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#response-codes"
+# Signaling Codes
+signaling_csv_url = "https://www.iana.org/assignments/core-parameters/signaling-codes.csv"
+signaling_source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#signaling-codes"
+
+[iana_coap_option_source]
+title = "IANA CoAP Option Numbers"
+csv_url = "https://www.iana.org/assignments/core-parameters/option-numbers.csv"
+source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#option-numbers"
+
+[iana_coap_content_format_source]
+title = "IANA CoAP Content-Formats"
+csv_url = "https://www.iana.org/assignments/core-parameters/content-formats.csv"
+source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats"
+
+[iana_coap_signaling_option_numbers_source]
+title = "IANA CoAP Option Numbers"
+csv_url = "https://www.iana.org/assignments/core-parameters/signaling-option-numbers.csv"
+source = "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#signaling-option-numbers"
+
+[iana_http_status_code_source]
+title = "IANA HTTP Status Code"
+csv_url = "https://www.iana.org/assignments/http-status-codes/http-status-codes-1.csv"
+source_url = "https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml#http-status-codes-1"
+
+[iana_http_field_name_source]
+title = "IANA HTTP Field Name"
+csv_url = "https://www.iana.org/assignments/http-fields/field-names.csv"
+source_url = "https://www.iana.org/assignments/http-fields/http-fields.xhtml#field-names"

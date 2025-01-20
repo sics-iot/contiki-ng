@@ -1,0 +1,19 @@
+
+[coap]
+spacing_string = "  "
+style_override = "contiki-ng"
+generated_header_filepath = '../../../os/net/app-layer/coap/coap-constants.h'
+cache_directory_path = './cache/cbor/'
+
+[coap.request_response]
+name = "coap_code"
+
+[coap.option]
+name = "coap_option"
+
+[coap.content_format]
+name = "coap_content_format"
+
+[coap.signaling_option_numbers]
+name = "option_number"
+

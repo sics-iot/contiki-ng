@@ -54,6 +54,7 @@ RUN apt-get -qq update && \
     python3-pip \
     python3-setuptools \
     python3-serial \
+    python3-venv \
     rlwrap \
     sudo \
     screen \
