@@ -909,8 +909,6 @@ compress_hdr_iphc(void)
     }
   }
 
-  uncomp_hdr_len = UIP_IPH_LEN;
-
   /* Start of ext hdr compression or UDP compression */
   /* pick out the next-header position */
   next_hdr = &UIP_IP_BUF->proto;
@@ -1516,8 +1514,6 @@ compress_hdr_ipv6(void)
   packetbuf_hdr_len += SICSLOWPAN_IPV6_HDR_LEN;
   memcpy(packetbuf_ptr + packetbuf_hdr_len, UIP_IP_BUF, UIP_IPH_LEN);
   packetbuf_hdr_len += UIP_IPH_LEN;
-  uncomp_hdr_len += UIP_IPH_LEN;
-  return;
 }
 #endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6 */
 /** @} */
@@ -1628,7 +1624,7 @@ output(const linkaddr_t *localdest)
   int frag_needed;
 
   /* init */
-  uncomp_hdr_len = 0;
+  uncomp_hdr_len = UIP_IPH_LEN;
   packetbuf_hdr_len = 0;
 
   /* reset packetbuf buffer */
