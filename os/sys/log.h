@@ -120,6 +120,7 @@ extern int curr_log_level_snmp;
 extern int curr_log_level_lwm2m;
 extern int curr_log_level_sys;
 extern int curr_log_level_main;
+extern int curr_log_level_edhoc;
 
 extern struct log_module all_modules[];
 
@@ -137,6 +138,7 @@ extern struct log_module all_modules[];
 #define LOG_LEVEL_LWM2M                       MIN((LOG_CONF_LEVEL_LWM2M), curr_log_level_lwm2m)
 #define LOG_LEVEL_SYS                         MIN((LOG_CONF_LEVEL_SYS), curr_log_level_sys)
 #define LOG_LEVEL_MAIN                        MIN((LOG_CONF_LEVEL_MAIN), curr_log_level_main)
+#define LOG_LEVEL_EDHOC                       MIN((LOG_CONF_LEVEL_EDHOC), curr_log_level_edhoc)
 
 /* Main log function */
 

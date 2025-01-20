@@ -165,6 +165,10 @@
 #define LOG_CONF_LEVEL_SYS                         LOG_LEVEL_NONE
 #endif /* LOG_CONF_LEVEL_SYS */
 
+#ifndef LOG_CONF_LEVEL_EDHOC
+#define LOG_CONF_LEVEL_EDHOC                       LOG_LEVEL_NONE
+#endif /* LOG_CONF_LEVEL_EDHOC */
+
 #endif /* LOG_CONF_H_ */
 
 /** @} */

@@ -67,6 +67,7 @@ int curr_log_level_snmp = LOG_CONF_LEVEL_SNMP;
 int curr_log_level_lwm2m = LOG_CONF_LEVEL_LWM2M;
 int curr_log_level_sys = LOG_CONF_LEVEL_SYS;
 int curr_log_level_main = LOG_CONF_LEVEL_MAIN;
+int curr_log_level_edhoc = LOG_CONF_LEVEL_EDHOC;
 
 struct log_module all_modules[] = {
   {"rpl", &curr_log_level_rpl, LOG_CONF_LEVEL_RPL},
@@ -82,6 +83,7 @@ struct log_module all_modules[] = {
   {"lwm2m", &curr_log_level_lwm2m, LOG_CONF_LEVEL_LWM2M},
   {"sys", &curr_log_level_sys, LOG_CONF_LEVEL_SYS},
   {"main", &curr_log_level_main, LOG_CONF_LEVEL_MAIN},
+  {"edhoc", &curr_log_level_edhoc, LOG_CONF_LEVEL_EDHOC},
   {NULL, NULL, 0},
 };
 
@@ -168,7 +170,7 @@ log_bytes(const void *data, size_t length)
   const uint8_t *u8data = (const uint8_t *)data;
   size_t i;
   for(i = 0; i != length; ++i) {
-    LOG_OUTPUT("%02x", u8data[i]);
+    LOG_OUTPUT(" %02x", u8data[i]);
   }
 }
 /*---------------------------------------------------------------------------*/
