@@ -97,6 +97,10 @@ can_accept_new_parent(const linkaddr_t *candidate_for_removal, rpl_dio_t *dio)
   }
 }
 /*---------------------------------------------------------------------------*/
+#if MAC_CONF_WITH_TSCH
+extern int tsch_is_associated;
+#endif
+/*---------------------------------------------------------------------------*/
 bool
 rpl_nbr_can_accept_new(const linkaddr_t *new,
                        const linkaddr_t *candidate_for_removal,
@@ -124,6 +128,11 @@ rpl_nbr_can_accept_new(const linkaddr_t *new,
     /* Behavior for all but new RPL parents/children: accept anything
        until table is full. */
     accept = (candidate_for_removal == NULL);
+    #if MAC_CONF_WITH_TSCH
+    if(!tsch_is_associated) {
+      accept = true;
+    }
+    #endif
     break;
   }
   LOG_DBG("%s new neighbor ", accept ? "accept" : "reject");
