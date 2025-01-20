@@ -259,7 +259,6 @@ void rtimer_arch_schedule(rtimer_clock_t t);
  *
  * Currently rtimer_arch_now() needs to be defined in rtimer-arch.h
  */
-/* rtimer_clock_t rtimer_arch_now(void); */
 
 /** @} */
 
