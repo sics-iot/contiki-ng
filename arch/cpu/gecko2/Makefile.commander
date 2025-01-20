@@ -1,0 +1,17 @@
+COMMANDER ?= commander
+
+ifdef DEVICE_SERIAL_NO
+  COMMANDER_OPTIONS += --serialno $(DEVICE_SERIAL_NO)
+endif
+
+ifdef DEVICE_IP_ADDRESS
+  COMMANDER_OPTIONS += --ip $(DEVICE_IP_ADDRESS)
+endif
+
+%.upload: $(OUT_HEX)
+ifeq (, $(shell which $(COMMANDER)))
+	$(error Could not find commander "$(COMMANDER)", please install it)
+else
+	$(COMMANDER) flash $(COMMANDER_OPTIONS) $<
+	$(COMMANDER) verify $(COMMANDER_OPTIONS) $<
+endif

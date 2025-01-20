@@ -1,0 +1,24 @@
+ifndef CONTIKI
+  $(error CONTIKI not defined! You must specify where CONTIKI resides!)
+endif
+
+### Board and BSP selection
+BOARD ?= brd4002a
+BOARDS = brd4002a
+
+### Unless the example dictates otherwise, build with code size optimisations switched off
+SMALL ?= 0
+
+### Include the board-specific makefile
+PLATFORM_ROOT_DIR = $(CONTIKI_NG_RELOC_PLATFORM_DIR)/$(TARGET)
+include $(PLATFORM_ROOT_DIR)/$(BOARD)/Makefile.$(notdir $(BOARD))
+
+CONTIKI_TARGET_DIRS += .
+CONTIKI_TARGET_SOURCEFILES += platform.c $(BOARD_SOURCEFILES)
+
+CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
+
+### Define the CPU directory and pull in the correct CPU makefile.
+CONTIKI_CPU = $(CONTIKI_NG_RELOC_CPU_DIR)/gecko2
+GECKO_SDK = $(CONTIKI_NG_RELOC_CPU_DIR)/gecko
+include $(CONTIKI_CPU)/$(DEVICE_OPN)/Makefile.$(DEVICE_OPN)

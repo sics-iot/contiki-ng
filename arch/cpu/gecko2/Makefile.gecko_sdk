@@ -1,0 +1,12 @@
+#GSDK_ROOT := $(CONTIKI_CPU)/lib/gecko_sdk
+GSDK_ROOT := $(GECKO_SDK)/lib/gecko_sdk
+
+ifeq (,$(wildcard $(GSDK_ROOT)/*))
+    $(warning $(GSDK_ROOT) does not exist or is empty.)
+    $(warning Did you run 'git submodule update --init' ?)
+    $(error "")
+endif
+
+CMSIS_PATH = $(GSDK_ROOT)/platform/CMSIS
+
+EXTERNALDIRS += $(CMSIS_PATH)/Core/Include

@@ -69,10 +69,12 @@ coap/coap-example-client/zoul \
 coap/coap-example-server/zoul \
 dev/button-hal/gecko:BOARD=brd4162a \
 dev/button-hal/gecko:BOARD=brd4166a \
+dev/button-hal/gecko2:BOARD=brd4002a \
 dev/gpio-hal/zoul:BOARD=orion \
 dev/leds/simplelink:BOARD=srf06/cc26x0 \
 dev/leds/gecko:BOARD=brd4162a \
 dev/leds/gecko:BOARD=brd4166a \
+dev/leds/gecko2:BOARD=brd4002a \
 dev/rgb-led/zoul:BOARD=remote-reva \
 dev/dht11/nrf52840:BOARD=dk \
 hello-world/nrf52840:BOARD=dk \
@@ -106,6 +108,7 @@ hello-world/nrf:BOARD=nrf52840/dongle:NRF_NATIVE_USB=1 \
 hello-world/nrf:BOARD=nrf5340/dk/application:NRF_NATIVE_USB=1 \
 hello-world/gecko:BOARD=brd4162a \
 hello-world/gecko:BOARD=brd4166a \
+hello-world/gecko2:BOARD=brd4002a \
 libs/data-structures/zoul \
 libs/deployment/openmote \
 libs/energest/zoul \
