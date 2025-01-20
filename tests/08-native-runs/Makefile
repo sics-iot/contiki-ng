@@ -19,6 +19,8 @@ tests/08-native-runs/12-heapmem/native:./12-heapmem.sh:DEFINES=HEAPMEM_DEBUG=0 \
 tests/08-native-runs/12-heapmem/native:./12-heapmem.sh:DEFINES=HEAPMEM_DEBUG=1 \
 tests/08-native-runs/13-coffee/native:./13-coffee.sh \
 tests/08-native-runs/14-sha-256/native:./14-sha-256.sh \
-tests/08-native-runs/15-ieee802154-security/native:./15-ieee802154-security.sh
+tests/08-native-runs/15-ieee802154-security/native:./15-ieee802154-security.sh \
+tests/08-native-runs/16-process-mutex/native:./16-process-mutex.sh \
+tests/08-native-runs/17-ecc/native:./17-ecc.sh
 
 include ../Makefile.compile-test

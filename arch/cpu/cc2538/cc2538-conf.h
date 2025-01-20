@@ -319,6 +319,10 @@
 #ifndef SHA_256_CONF
 #define SHA_256_CONF            cc2538_sha_256_driver /**< SHA-256 driver */
 #endif
+
+#ifndef ECC_CONF
+#define ECC_CONF                cc2538_ecc_driver /**< ECC driver */
+#endif
 /** @} */
 /*---------------------------------------------------------------------------*/
 #endif /* CC2538_CONF_H_ */

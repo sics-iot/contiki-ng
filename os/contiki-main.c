@@ -42,6 +42,7 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "contiki-net.h"
+#include "lib/ecc.h"
 #include "sys/node-id.h"
 #include "sys/platform.h"
 #include "sys/energest.h"
@@ -214,6 +215,9 @@ main(void)
 #endif /* QUEUEBUF_ENABLED */
   netstack_init();
   node_id_init();
+#ifdef ECC
+  ECC.init();
+#endif /* ECC */
 
   LOG_INFO("Starting " CONTIKI_VERSION_STRING "\n");
   LOG_DBG("TARGET=%s", CONTIKI_TARGET_STRING);

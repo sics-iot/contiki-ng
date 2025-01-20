@@ -49,6 +49,7 @@
 
 #include "contiki.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 /*---------------------------------------------------------------------------*/
 /** \name PKA memory
@@ -530,6 +531,10 @@
 #define PKA_FUNCTION_MULTIPLY   0x00000001 /**< Perform multiply operation */
 #define PKA_FUNCTION_MULTIPLY_M 0x00000001
 #define PKA_FUNCTION_MULTIPLY_S 0
+#define PKA_FUNCTION_ECCADD     0x00003000
+#define PKA_FUNCTION_ECCMUL     0x00005000
+#define PKA_FUNCTION_INVMOD     0x00007000
+
 /** @} */
 /*---------------------------------------------------------------------------*/
 /** \name PKA_COMPARE register registers bit fields
@@ -552,6 +557,14 @@
 #define PKA_COMPARE_A_EQUALS_B_M \
                                 0x00000001
 #define PKA_COMPARE_A_EQUALS_B_S 0
+/** @} */
+/*---------------------------------------------------------------------------*/
+/** \name PKA_SHIFT result values
+ * @{
+ */
+#define PKA_SHIFT_SUCCESS           0
+#define PKA_SHIFT_POINT_AT_INFINITY 7
+#define PKA_SHIFT_ERROR             31
 /** @} */
 /*---------------------------------------------------------------------------*/
 /** \name PKA_MSW register registers bit fields
@@ -828,7 +841,42 @@
 #define PKA_STATUS_OPERATION_INPRG     7 /**< PKA operation is in progress. */
 #define PKA_STATUS_OPERATION_NOT_INPRG 8 /**< No PKA operation is in progress. */
 #define PKA_STATUS_SIGNATURE_INVALID   9 /**< Signature is invalid. */
-
+#define PKA_STATUS_A_EQ_B              10
+#define PKA_STATUS_POINT_AT_INFINITY   11
+/** @} */
+/*---------------------------------------------------------------------------*/
+/** \name Required scratchpad space.
+ * @{
+ */
+#define PKA_NEXT_OFFSET(offset, words) \
+  (offset + ((words & 7) ? 8 /* ensure 64-bit boundary */ : 0) + (words & ~7))
+/** Table 22-4 */
+#define PKA_MULTIPLY_SCRATCHPAD_WORDS(alen, blen) \
+  (alen + blen + 6)
+#define PKA_ADD_SCRATCHPAD_WORDS(alen, blen) \
+  (MAX(alen, blen) + 1)
+#define PKA_SUBTRACT_SCRATCHPAD_WORDS(alen, blen) \
+  (MAX(alen, blen))
+#define PKA_LSHIFT_WORDS(len) \
+  (len + 1)
+#define PKA_DIVIDE_SCRATCHPAD_WORDS(blen) \
+  (blen + 1)
+#define PKA_QUOTIENT_WORDS(alen, blen) \
+  (alen - blen + 1)
+#define PKA_REMAINDER_WORDS(blen) \
+  (blen + 1)
+/** Table 22-16 */
+#define PKA_MOD_INV_SCRATCHPAD_WORDS(alen, blen) \
+  (5 * PKA_COORDINATE_WORDS(MAX(alen, blen)))
+/** Table 22-21 */
+#define PKA_COORDINATE_WORDS(len) \
+  (len + 2 + (len % 2))
+#define PKA_ECC_ADD_SCRATCHPAD_WORDS(blen) \
+  (2 * PKA_COORDINATE_WORDS(blen) + 5 * PKA_COORDINATE_WORDS(blen + 1))
+#define PKA_ECC_MUL_SCRATCHPAD_WORDS(blen) \
+  (18 * PKA_COORDINATE_WORDS(blen) + MAX(8, PKA_COORDINATE_WORDS(blen)))
+#define PKA_POINT_WORDS(len) \
+  (2 * PKA_COORDINATE_WORDS(len))
 /** @} */
 /*---------------------------------------------------------------------------*/
 /** \name PKA functions
@@ -860,6 +908,55 @@ uint8_t pka_check_status(void);
  * \note This function is only supposed to be called by the PKA drivers.
  */
 void pka_register_process_notification(struct process *p);
+
+/**
+ * \brief Initiates the given PKA function.
+ */
+void pka_run_function(uint32_t pka_function);
+
+/**
+ * \brief           Copies a little-endian sequence of words to the PKA RAM.
+ * \param words     The lowest memory address holds the least significant word.
+ * \param num_words The number of to-be-copied words.
+ * \param offset    Offset into the PKA RAM from PKA_RAM_BASE.
+ */
+void pka_little_endian_to_pka_ram(const uint32_t *words,
+                                  size_t num_words,
+                                  uintptr_t offset);
+
+/**
+ * \brief        Copies a word to the PKA RAM.
+ * \param word   The to-be-copied word.
+ * \param offset Offset into the PKA RAM from PKA_RAM_BASE.
+ */
+void pka_word_to_pka_ram(uint32_t word, uintptr_t offset);
+
+/**
+ * \brief        Retrieves a word from the PKA RAM.
+ * \param offset Offset into the PKA RAM from PKA_RAM_BASE.
+ * \return       The read word.
+ */
+uint32_t pka_word_from_pka_ram(uintptr_t offset);
+
+/**
+ * \brief           Copies a big-endian sequence of bytes to the PKA RAM.
+ * \param bytes     The to-be-copied bytes.
+ * \param num_bytes The number of to-be-copied bytes.
+ * \param offset    Offset into the PKA RAM from PKA_RAM_BASE.
+ */
+void pka_big_endian_to_pka_ram(const uint8_t *bytes,
+                               size_t num_bytes,
+                               uintptr_t offset);
+
+/**
+ * \brief           Retrieves a big-endian sequence of bytes from the PKA RAM.
+ * \param bytes     Target location for the big-endian sequence of bytes.
+ * \param num_words The number of to-be-retrieved words.
+ * \param offset    Offset into the PKA RAM from PKA_RAM_BASE.
+ */
+void pka_big_endian_from_pka_ram(uint8_t *bytes,
+                                 size_t num_words,
+                                 uintptr_t offset);
 
 /** @} */
 
