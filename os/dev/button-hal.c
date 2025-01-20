@@ -79,8 +79,8 @@ duration_exceeded_callback(void *btn)
 {
   button_hal_button_t *button = (button_hal_button_t *)btn;
 
-  button->press_duration_seconds++;
-  ctimer_set(&button->duration_ctimer, CLOCK_SECOND,
+  button->press_duration_events++;
+  ctimer_set(&button->duration_ctimer, BUTTON_HAL_PERIODIC_INTERVAL,
              duration_exceeded_callback, button);
   process_post(PROCESS_BROADCAST, button_hal_periodic_event, button);
 }
@@ -117,9 +117,9 @@ debounce_handler(void *btn)
      * callback will happen 1 second after the button press, not 1 second
      * after the end of the debounce. Notify process about the press event.
      */
-    button->press_duration_seconds = 0;
+    button->press_duration_events = 0;
     ctimer_set(&button->duration_ctimer,
-               CLOCK_SECOND - BUTTON_HAL_DEBOUNCE_DURATION,
+               BUTTON_HAL_PERIODIC_INTERVAL - BUTTON_HAL_DEBOUNCE_DURATION,
                duration_exceeded_callback, button);
     process_post(PROCESS_BROADCAST, button_hal_press_event, button);
   } else if(button_state == BUTTON_HAL_STATE_RELEASED && expired == 0) {

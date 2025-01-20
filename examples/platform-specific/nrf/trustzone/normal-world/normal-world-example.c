@@ -75,10 +75,10 @@ PROCESS_THREAD(normal_world_process, ev, data)
        * nRF5340DK) for more than 10 seconds.
        */
       if(btn->unique_id == BUTTON_HAL_ID_USER_BUTTON &&
-         btn->press_duration_seconds >= 10) {
+         btn->press_duration_events >= 10) {
         printf("%s pressed for %u secs. Running fault test.\n\n",
                BUTTON_HAL_GET_DESCRIPTION(btn),
-               btn->press_duration_seconds);
+               btn->press_duration_events);
         /*
          * Read memory in the secure world. This should trigger a
          * secure fault and reboot the device.
@@ -88,7 +88,7 @@ PROCESS_THREAD(normal_world_process, ev, data)
       }
     } else if(ev == button_hal_periodic_event) {
       button_hal_button_t *btn = data;
-      printf("Periodic event, %u seconds (%s)\n", btn->press_duration_seconds,
+      printf("Periodic event, %u seconds (%s)\n", btn->press_duration_events,
              BUTTON_HAL_GET_DESCRIPTION(btn));
     }
 

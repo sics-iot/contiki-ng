@@ -71,10 +71,10 @@ PROCESS_THREAD(button_hal_example, ev, data)
       printf("Release event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(btn));
     } else if(ev == button_hal_periodic_event) {
       btn = (button_hal_button_t *)data;
-      printf("Periodic event, %u seconds (%s)\n", btn->press_duration_seconds,
+      printf("Periodic event, %u events (%s)\n", btn->press_duration_events,
              BUTTON_HAL_GET_DESCRIPTION(btn));
 
-      if(btn->press_duration_seconds > 5) {
+      if(btn->press_duration_events * BUTTON_HAL_PERIODIC_INTERVAL > 5 * CLOCK_SECOND) {
         printf("%s pressed for more than 5 secs. Do custom action\n",
                BUTTON_HAL_GET_DESCRIPTION(btn));
       }

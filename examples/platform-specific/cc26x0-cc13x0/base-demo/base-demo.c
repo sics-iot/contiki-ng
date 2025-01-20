@@ -379,7 +379,7 @@ PROCESS_THREAD(base_demo_process, ev, data)
 
       printf("%s periodic event, duration %d seconds\n",
              BUTTON_HAL_GET_DESCRIPTION(button),
-             button->press_duration_seconds);
+             button->press_duration_events);
     } else if(ev == button_hal_press_event) {
       button_hal_button_t *btn = (button_hal_button_t *)data;
 

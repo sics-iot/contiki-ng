@@ -34,6 +34,9 @@
 /*---------------------------------------------------------------------------*/
 /* Force button descriptions */
 #define BUTTON_HAL_CONF_WITH_DESCRIPTION 1
+
+/* Set custom periodic interval */
+#define BUTTON_HAL_CONF_PERIODIC_INTERVAL (CLOCK_SECOND/2)
 /*---------------------------------------------------------------------------*/
 #endif /* PROJECT_CONF_H_ */
 /*---------------------------------------------------------------------------*/

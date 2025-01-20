@@ -99,6 +99,20 @@
 #else
 #define BUTTON_HAL_DEBOUNCE_DURATION (CLOCK_SECOND >> 6)
 #endif
+/**
+ * \brief Controls the button_hal_periodic_event interval.
+ *
+ * Default value is 1 second.
+ */
+#ifdef BUTTON_HAL_CONF_PERIODIC_INTERVAL
+#define BUTTON_HAL_PERIODIC_INTERVAL BUTTON_HAL_CONF_PERIODIC_INTERVAL
+#else
+#define BUTTON_HAL_PERIODIC_INTERVAL CLOCK_SECOND
+#endif
+
+#if (BUTTON_HAL_PERIODIC_INTERVAL < (BUTTON_HAL_DEBOUNCE_DURATION << 2))
+#error BUTTON_HAL_PERIODIC_INTERVAL is too close to BUTTON_HAL_DEBOUNCE_DURATION!
+#endif
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Controls whether buttons will have human-readable names
@@ -174,8 +188,8 @@ struct button_hal_button_s {
   /** The gpio pin connected to the button */
   const gpio_hal_pin_t pin;
 
-  /** A counter of the duration (in seconds) of a button press */
-  uint8_t press_duration_seconds;
+  /** A counter of the amount of press_duration_events */
+  uint8_t press_duration_events;
 
   /**
    * \brief A unique identifier for this button.
